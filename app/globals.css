@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+/* Colors and type taken from the Harlem Night Market "Call for Vendors" flyer. */
+@theme {
+  --color-navy: #17177a;
+  --color-navy-deep: #0e0e52;
+  --color-panel: #1f2190;
+  --color-field: #11125e;
+  --color-line: #3a3db0;
+  --color-cream: #fbf3e4;
+  --color-muted: #b9bbe8;
+  --color-orange: #f2832a;
+  --color-pink: #e43a90;
+  --color-teal: #2ec5cc;
+  --color-gold: #f5b335;
+  --color-plum: #6a2386;
+  --color-danger: #ff9cc6;
+
+  --font-sans: "Montserrat", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Anton", "Impact", "Arial Narrow", sans-serif;
+}
+
+body {
+  background-color: var(--color-navy);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgb(110 70 220 / 0.45), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 100% 100%, rgb(228 58 144 / 0.12), transparent 70%);
+  background-attachment: fixed;
+  color: var(--color-cream);
+}
+
+@layer components {
+  .display {
+    @apply font-display uppercase leading-[0.9] tracking-wide;
+  }
+
+  .field-label {
+    @apply mb-1.5 block text-sm font-semibold text-cream;
+  }
+  .field-input {
+    @apply w-full rounded-lg border border-line bg-field px-3 py-2.5 text-base text-cream shadow-inner outline-none transition placeholder:text-muted/60 focus:border-teal focus:ring-2 focus:ring-teal/40;
+    color-scheme: dark;
+  }
+  .field-error {
+    @apply mt-1 text-sm font-medium text-danger;
+  }
+  .choice {
+    @apply flex cursor-pointer items-center gap-2 rounded-lg border border-line bg-field px-3 py-2.5 text-sm text-cream transition hover:border-muted has-[:checked]:border-orange has-[:checked]:bg-orange/20;
+  }
+  .choice input {
+    @apply h-4 w-4 shrink-0 accent-orange;
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-lg bg-orange px-7 py-3 font-display text-xl uppercase tracking-wider text-navy-deep shadow-lg shadow-orange/20 transition hover:bg-pink hover:text-cream disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-lg border border-teal/70 px-4 py-2 text-sm font-semibold text-teal transition hover:bg-teal hover:text-navy-deep;
+  }
+}
