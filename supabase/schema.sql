@@ -20,6 +20,7 @@ create table if not exists public.vendor_applications (
   business_address text,
   categories text[] not null default '{}',
   other_category text,
+  product_details text,
   available_all_dates boolean not null default false,
   availability_notes text,
   setup_type text not null,
@@ -35,6 +36,9 @@ create table if not exists public.vendor_applications (
   submitted_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Columns added after the first launch (for databases created before them).
+alter table public.vendor_applications add column if not exists product_details text;
 
 create table if not exists public.vendor_date_preferences (
   id uuid primary key default gen_random_uuid(),
@@ -104,13 +108,13 @@ declare
 begin
   insert into vendor_applications (
     id, event_slug, contact_name, business_name, email, phone, instagram, website,
-    business_address, categories, other_category, available_all_dates, availability_notes,
+    business_address, categories, other_category, product_details, available_all_dates, availability_notes,
     setup_type, setup_type_other, needs_electricity, needs_table, needs_chairs, setup_notes, agreements
   ) values (
     new_id, app->>'event_slug', app->>'contact_name', app->>'business_name', app->>'email',
     app->>'phone', app->>'instagram', app->>'website', app->>'business_address',
     array(select jsonb_array_elements_text(coalesce(app->'categories', '[]'))),
-    app->>'other_category', coalesce((app->>'available_all_dates')::boolean, false),
+    app->>'other_category', app->>'product_details', coalesce((app->>'available_all_dates')::boolean, false),
     app->>'availability_notes', app->>'setup_type', app->>'setup_type_other',
     (app->>'needs_electricity')::boolean, (app->>'needs_table')::boolean,
     (app->>'needs_chairs')::boolean, app->>'setup_notes', coalesce(app->'agreements', '{}')

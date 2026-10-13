@@ -30,6 +30,7 @@ const COLUMNS: Column[] = [
   { header: "Website", width: 24, value: (a) => a.website ?? "" },
   { header: "Categories", width: 28, value: (a) => join(a.categories) },
   { header: "Other Category", width: 18, value: (a) => a.otherCategory ?? "" },
+  { header: "Additional Details", width: 40, value: (a) => a.productDetails ?? "" },
   { header: "Food Vendor", width: 12, value: (a) => (isFoodVendor(a.categories) ? "Yes" : "No") },
   { header: "Food Types", width: 24, value: (a) => join(a.foodTypes) + (a.otherFoodType ? ` (${a.otherFoodType})` : "") },
   {

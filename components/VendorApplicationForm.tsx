@@ -9,7 +9,9 @@ import {
   AGREEMENTS,
   applicationSchema,
   CATEGORIES,
+  countWords,
   isFoodVendor,
+  MAX_DETAIL_WORDS,
   UPLOAD_FIELDS,
   type ApplicationData,
   type ApplicationInput,
@@ -55,6 +57,7 @@ export function VendorApplicationForm({ eventSlug, dates }: { eventSlug: string;
   const categories = useWatch({ control, name: "categories" });
   const food = isFoodVendor(categories);
   const needsElectricity = useWatch({ control, name: "needsElectricity" });
+  const detailWords = countWords(useWatch({ control, name: "productDetails" }));
 
   async function onSubmit(data: ApplicationData) {
     setSubmitError(null);
@@ -126,6 +129,14 @@ export function VendorApplicationForm({ eventSlug, dates }: { eventSlug: string;
             </Field>
           </div>
         )}
+        <div className="mt-4">
+          <Field label="Additional details" error={errors.productDetails}>
+            <textarea className="field-input" rows={5} {...register("productDetails")} />
+            <span className={`mt-1 block text-right text-xs ${detailWords > MAX_DETAIL_WORDS ? "text-pink" : "text-muted"}`}>
+              {detailWords} / {MAX_DETAIL_WORDS} words
+            </span>
+          </Field>
+        </div>
       </Section>
 
       {food && (

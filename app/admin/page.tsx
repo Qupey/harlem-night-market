@@ -72,6 +72,7 @@ async function ApplicationList() {
                   <Row label="Instagram" value={a.instagram} />
                   <Row label="Website" value={a.website} />
                   <Row label="Other category" value={a.otherCategory} />
+                  <Row label="Additional details" wide value={a.productDetails && <span className="whitespace-pre-line">{a.productDetails}</span>} />
                   <Row label="Preferred dates" value={prefs.join(" → ")} />
                   <Row label="Availability notes" value={a.availabilityNotes} />
                   <Row

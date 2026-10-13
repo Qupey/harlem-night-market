@@ -75,6 +75,7 @@ async function saveApplication(eventSlug: string, data: ApplicationData, uploads
         business_address: null,
         categories: data.categories,
         other_category: data.otherCategory || null,
+        product_details: data.productDetails || null,
         available_all_dates: false,
         availability_notes: data.availabilityNotes || null,
         // Space, table and chairs are no longer asked; the columns stay for older applications.
@@ -144,6 +145,7 @@ type Row = {
   business_address: string | null;
   categories: string[];
   other_category: string | null;
+  product_details?: string | null; // added after launch; missing until the schema update is run
   available_all_dates: boolean;
   availability_notes: string | null;
   setup_type: string;
@@ -209,6 +211,7 @@ function toStored(r: Row): StoredApplication {
     website: r.website ?? "",
     categories: r.categories as ApplicationData["categories"],
     otherCategory: r.other_category ?? "",
+    productDetails: r.product_details ?? "",
     foodTypes: (food?.food_types ?? []) as ApplicationData["foodTypes"],
     otherFoodType: food?.other_food_type ?? "",
     menuItems: [...r.menu_items]

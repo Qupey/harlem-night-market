@@ -51,6 +51,9 @@ export function isFoodVendor(categories: readonly string[] | undefined): boolean
 
 const optionalText = z.string().trim().max(500).optional().or(z.literal(""));
 const yesNo = z.enum(["yes", "no"], { message: "Please choose yes or no" });
+export const MAX_DETAIL_WORDS = 250;
+export const countWords = (text: string | undefined) => (text?.trim() ? text.trim().split(/\s+/).length : 0);
+
 const mustAgree = z.literal(true, { message: "Please check this box to continue" });
 
 export const menuItemSchema = z.object({
@@ -83,6 +86,13 @@ export const applicationSchema = z
     // Goods / vendor type
     categories: z.array(z.enum(CATEGORIES)).min(1, "Choose at least one category"),
     otherCategory: optionalText,
+    productDetails: z
+      .string()
+      .trim()
+      .max(3000, `Please keep this to ${MAX_DETAIL_WORDS} words or fewer`)
+      .refine((v) => countWords(v) <= MAX_DETAIL_WORDS, `Please keep this to ${MAX_DETAIL_WORDS} words or fewer`)
+      .optional()
+      .or(z.literal("")),
 
     // Food vendor section (only validated when a food category is selected)
     foodTypes: z.array(z.enum(FOOD_TYPES)),
