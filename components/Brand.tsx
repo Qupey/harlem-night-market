@@ -37,7 +37,7 @@ export function DateTiles({ event }: { event: MarketEvent }) {
 export function Venue({ event }: { event: MarketEvent }) {
   return (
     <p className="text-center font-extrabold uppercase">
-      <span className="block text-lg tracking-wide text-teal sm:text-2xl">{event.venueIntro}</span>
+      <span className="block text-lg tracking-wide text-orange sm:text-2xl">{event.venueIntro}</span>
       <span className="block text-[2.4375rem] leading-tight tracking-wide text-teal sm:text-[3.9rem]">{event.venue}</span>
       <span className="block text-base tracking-wide text-cream sm:text-xl">{event.address}</span>
     </p>
