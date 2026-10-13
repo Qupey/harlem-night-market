@@ -49,6 +49,8 @@ export async function POST(request: Request) {
     }
   }
 
+  if (data.needsElectricity !== "yes") data.electricityDetails = "";
+
   // Drop food-only data and files for non-food vendors.
   const food = isFoodVendor(data.categories);
   if (!food) {
@@ -64,7 +66,7 @@ export async function POST(request: Request) {
 
   const uploads: { field: UploadField; file: File }[] = [];
   for (const [field, cfg] of Object.entries(UPLOAD_FIELDS) as [UploadField, (typeof UPLOAD_FIELDS)[UploadField]][]) {
-    if (cfg.foodOnly && !food) continue;
+    if (cfg.retired || (cfg.foodOnly && !food)) continue;
     const files = form.getAll(field).filter((v): v is File => v instanceof File && v.size > 0);
     if (files.length > (cfg.multiple ? MAX_FILES_PER_FIELD : 1)) {
       return NextResponse.json({ error: `Too many files for ${cfg.label}.` }, { status: 422 });

@@ -72,17 +72,18 @@ async function saveApplication(eventSlug: string, data: ApplicationData, uploads
         phone: data.phone,
         instagram: data.instagram || null,
         website: data.website || null,
-        business_address: data.businessAddress || null,
+        business_address: null,
         categories: data.categories,
         other_category: data.otherCategory || null,
-        available_all_dates: data.availableAllDates,
+        available_all_dates: false,
         availability_notes: data.availabilityNotes || null,
-        setup_type: data.spaceNeeded,
-        setup_type_other: data.spaceOther || null,
+        // Space, table and chairs are no longer asked; the columns stay for older applications.
+        setup_type: "",
+        setup_type_other: null,
         needs_electricity: yes(data.needsElectricity),
-        needs_table: yes(data.needsTable),
-        needs_chairs: yes(data.needsChairs),
-        setup_notes: data.setupNotes || null,
+        needs_table: false,
+        needs_chairs: false,
+        setup_notes: joinSetupNotes(data.electricityDetails, data.setupNotes),
         agreements: data.agreements,
         date_preferences: preferences,
         food: food
@@ -173,6 +174,23 @@ const SELECT = `*,
   menu_items(position, name, description, price, dietary_tags),
   uploaded_documents(document_type, file_path, file_name, content_type, size_bytes)`;
 
+// Electricity details share the setup_notes column (no schema change needed),
+// stored as a labelled first paragraph and split back out when read.
+const ELECTRICITY_PREFIX = "Electricity needs: ";
+
+function joinSetupNotes(electricity: string | undefined, notes: string | undefined): string | null {
+  const parts = [electricity && `${ELECTRICITY_PREFIX}${electricity.replace(/\s*\n\s*/g, " ")}`, notes].filter(Boolean);
+  return parts.length > 0 ? parts.join("\n\n") : null;
+}
+
+function splitSetupNotes(stored: string | null): { electricityDetails: string; setupNotes: string } {
+  if (!stored?.startsWith(ELECTRICITY_PREFIX)) return { electricityDetails: "", setupNotes: stored ?? "" };
+  const end = stored.indexOf("\n\n");
+  return end === -1
+    ? { electricityDetails: stored.slice(ELECTRICITY_PREFIX.length), setupNotes: "" }
+    : { electricityDetails: stored.slice(ELECTRICITY_PREFIX.length, end), setupNotes: stored.slice(end + 2) };
+}
+
 function toStored(r: Row): StoredApplication {
   const food = (Array.isArray(r.food_vendor_details) ? r.food_vendor_details[0] : r.food_vendor_details) ?? null;
   const pref = (rank: number) => r.vendor_date_preferences.find((p) => p.rank === rank)?.event_date;
@@ -189,7 +207,6 @@ function toStored(r: Row): StoredApplication {
     phone: r.phone,
     instagram: r.instagram ?? "",
     website: r.website ?? "",
-    businessAddress: r.business_address ?? "",
     categories: r.categories as ApplicationData["categories"],
     otherCategory: r.other_category ?? "",
     foodTypes: (food?.food_types ?? []) as ApplicationData["foodTypes"],
@@ -208,14 +225,9 @@ function toStored(r: Row): StoredApplication {
     firstChoice: pref(1),
     secondChoice: pref(2),
     thirdChoice: pref(3),
-    availableAllDates: r.available_all_dates,
     availabilityNotes: r.availability_notes ?? "",
-    spaceNeeded: r.setup_type as ApplicationData["spaceNeeded"],
-    spaceOther: r.setup_type_other ?? "",
     needsElectricity: yn(r.needs_electricity),
-    needsTable: yn(r.needs_table),
-    needsChairs: yn(r.needs_chairs),
-    setupNotes: r.setup_notes ?? "",
+    ...splitSetupNotes(r.setup_notes),
     agreements: r.agreements,
     files: r.uploaded_documents.map((d) => ({
       field: FIELDS_BY_TYPE[d.document_type] ?? "productImages",

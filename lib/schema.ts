@@ -37,8 +37,6 @@ export const LICENSE_OPTIONS = [
   { value: "in_progress", label: "In progress" },
 ] as const;
 
-export const SPACE_OPTIONS = ["Standard 10x10", "Half table", "Food tent", "Truck/cart", "Other"] as const;
-
 export const AGREEMENTS = [
   { key: "noGuarantee", label: "I understand submission does not guarantee acceptance." },
   { key: "followRules", label: "I agree to follow event rules and setup times." },
@@ -81,7 +79,6 @@ export const applicationSchema = z
       .regex(/^[0-9+().\-\s]+$/, "Enter a valid phone number"),
     instagram: optionalText,
     website: optionalText,
-    businessAddress: optionalText,
 
     // Goods / vendor type
     categories: z.array(z.enum(CATEGORIES)).min(1, "Choose at least one category"),
@@ -99,15 +96,11 @@ export const applicationSchema = z
     firstChoice: z.string().optional(),
     secondChoice: z.string().optional(),
     thirdChoice: z.string().optional(),
-    availableAllDates: z.boolean(),
     availabilityNotes: optionalText,
 
     // Setup details
-    spaceNeeded: z.enum(SPACE_OPTIONS, { message: "Choose how much space you need" }),
-    spaceOther: optionalText,
     needsElectricity: yesNo,
-    needsTable: yesNo,
-    needsChairs: yesNo,
+    electricityDetails: optionalText,
     setupNotes: z.string().trim().max(2000).optional().or(z.literal("")),
 
     // Agreements
@@ -123,15 +116,15 @@ export const applicationSchema = z
     if (data.categories.includes("Other") && !data.otherCategory) {
       ctx.addIssue({ code: "custom", path: ["otherCategory"], message: "Tell us what you sell" });
     }
-    if (data.spaceNeeded === "Other" && !data.spaceOther) {
-      ctx.addIssue({ code: "custom", path: ["spaceOther"], message: "Describe the space you need" });
-    }
-    if (!data.availableAllDates && !data.firstChoice) {
+    if (data.needsElectricity === "yes" && !data.electricityDetails) {
       ctx.addIssue({
         code: "custom",
-        path: ["firstChoice"],
-        message: "Pick your first-choice date, or check that you are available for all dates",
+        path: ["electricityDetails"],
+        message: "Tell us what it's for and the wattage your equipment needs",
       });
+    }
+    if (!data.firstChoice) {
+      ctx.addIssue({ code: "custom", path: ["firstChoice"], message: "Pick your first-choice date" });
     }
     const picks = [data.firstChoice, data.secondChoice, data.thirdChoice].filter(Boolean);
     if (new Set(picks).size !== picks.length) {
@@ -164,12 +157,14 @@ export type ApplicationInput = z.input<typeof applicationSchema>;
 export type ApplicationData = z.output<typeof applicationSchema>;
 
 // File uploads sent alongside the form. Field name -> document type.
+// Retired fields are no longer on the form or accepted, but are kept so files
+// sent with earlier applications still show up with the right label.
 export const UPLOAD_FIELDS = {
-  foodLicenseFile: { label: "Proof of food handler license", multiple: false, foodOnly: true },
-  dohPermitFile: { label: "DOH permit", multiple: false, foodOnly: true },
-  insuranceFile: { label: "Insurance certificate", multiple: false, foodOnly: true },
-  logo: { label: "Logo", multiple: false, foodOnly: false },
-  productImages: { label: "Product images", multiple: true, foodOnly: false },
+  foodLicenseFile: { label: "Proof of food handler license", multiple: false, foodOnly: true, retired: false },
+  dohPermitFile: { label: "DOH permit", multiple: false, foodOnly: true, retired: false },
+  insuranceFile: { label: "Insurance certificate", multiple: false, foodOnly: true, retired: false },
+  logo: { label: "Logo", multiple: false, foodOnly: false, retired: true },
+  productImages: { label: "Product images", multiple: true, foodOnly: false, retired: true },
 } as const;
 
 export type UploadField = keyof typeof UPLOAD_FIELDS;

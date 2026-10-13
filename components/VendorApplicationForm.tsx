@@ -10,13 +10,11 @@ import {
   applicationSchema,
   CATEGORIES,
   isFoodVendor,
-  SPACE_OPTIONS,
   UPLOAD_FIELDS,
   type ApplicationData,
   type ApplicationInput,
   type UploadField,
 } from "@/lib/schema";
-import { FileUploadField } from "./FileUploadField";
 import { FoodVendorFields } from "./FoodVendorFields";
 import { Choice, ErrorText, Field, Section } from "./form-ui";
 
@@ -24,12 +22,6 @@ const CHOICES = [
   { name: "firstChoice", label: "First choice date" },
   { name: "secondChoice", label: "Second choice date" },
   { name: "thirdChoice", label: "Third choice date" },
-] as const;
-
-const YES_NO_FIELDS = [
-  { name: "needsElectricity", label: "Do you need electricity?" },
-  { name: "needsTable", label: "Do you need a table?" },
-  { name: "needsChairs", label: "Do you need chairs?" },
 ] as const;
 
 export function VendorApplicationForm({ eventSlug, dates }: { eventSlug: string; dates: EventDate[] }) {
@@ -43,7 +35,6 @@ export function VendorApplicationForm({ eventSlug, dates }: { eventSlug: string;
       categories: [],
       foodTypes: [],
       menuItems: [],
-      availableAllDates: false,
       agreements: {
         noGuarantee: false as unknown as true,
         followRules: false as unknown as true,
@@ -63,8 +54,7 @@ export function VendorApplicationForm({ eventSlug, dates }: { eventSlug: string;
 
   const categories = useWatch({ control, name: "categories" });
   const food = isFoodVendor(categories);
-  const spaceNeeded = useWatch({ control, name: "spaceNeeded" });
-  const availableAll = useWatch({ control, name: "availableAllDates" });
+  const needsElectricity = useWatch({ control, name: "needsElectricity" });
 
   async function onSubmit(data: ApplicationData) {
     setSubmitError(null);
@@ -72,7 +62,7 @@ export function VendorApplicationForm({ eventSlug, dates }: { eventSlug: string;
     body.set("eventSlug", eventSlug);
     body.set("data", JSON.stringify(data));
     for (const [field, list] of Object.entries(files) as [UploadField, File[]][]) {
-      if (UPLOAD_FIELDS[field].foodOnly && !food) continue;
+      if (UPLOAD_FIELDS[field].retired || (UPLOAD_FIELDS[field].foodOnly && !food)) continue;
       for (const f of list) body.append(field, f);
     }
 
@@ -119,11 +109,6 @@ export function VendorApplicationForm({ eventSlug, dates }: { eventSlug: string;
           <Field label="Website" error={errors.website}>
             <input className="field-input" type="url" placeholder="https://" {...register("website")} />
           </Field>
-          <div className="sm:col-span-2">
-            <Field label="Business address" error={errors.businessAddress}>
-              <input className="field-input" autoComplete="street-address" {...register("businessAddress")} />
-            </Field>
-          </div>
         </div>
       </Section>
 
@@ -152,7 +137,7 @@ export function VendorApplicationForm({ eventSlug, dates }: { eventSlug: string;
       <Section title="Event preferences" description="Rank the market dates that work best for you.">
         <div className="grid gap-4 sm:grid-cols-3">
           {CHOICES.map(({ name, label }) => (
-            <Field key={name} label={label} required={name === "firstChoice" && !availableAll} error={errors[name]}>
+            <Field key={name} label={label} required={name === "firstChoice"} error={errors[name]}>
               <select className="field-input" {...register(name)}>
                 <option value="">No preference</option>
                 {dates.map((d) => (
@@ -165,9 +150,6 @@ export function VendorApplicationForm({ eventSlug, dates }: { eventSlug: string;
           ))}
         </div>
         <div className="mt-4">
-          <Choice type="checkbox" label="I'm available for all dates" {...register("availableAllDates")} />
-        </div>
-        <div className="mt-4">
           <Field label="Notes about availability" error={errors.availabilityNotes}>
             <textarea className="field-input" rows={2} {...register("availabilityNotes")} />
           </Field>
@@ -175,38 +157,28 @@ export function VendorApplicationForm({ eventSlug, dates }: { eventSlug: string;
       </Section>
 
       <Section title="Setup details">
-        <Field label="How much space do you need?" required group error={errors.spaceNeeded}>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {SPACE_OPTIONS.map((s) => (
-              <Choice key={s} type="radio" value={s} label={s} {...register("spaceNeeded")} />
-            ))}
+        <Field label="Do you need electricity?" required group error={errors.needsElectricity}>
+          <p className="mb-2 text-sm text-muted">Note that we provide two electrical outlets for hot food vendors.</p>
+          <div className="flex max-w-xs gap-2">
+            <Choice type="radio" value="yes" label="Yes" className="flex-1" {...register("needsElectricity")} />
+            <Choice type="radio" value="no" label="No" className="flex-1" {...register("needsElectricity")} />
           </div>
         </Field>
-        {spaceNeeded === "Other" && (
+        {needsElectricity === "yes" && (
           <div className="mt-4">
-            <Field label="Describe the space you need" required error={errors.spaceOther}>
-              <input className="field-input" {...register("spaceOther")} />
+            <Field
+              label="If so, what for and what wattage does your equipment need?"
+              required
+              error={errors.electricityDetails}
+            >
+              <textarea className="field-input" rows={2} {...register("electricityDetails")} />
             </Field>
           </div>
         )}
-        <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          {YES_NO_FIELDS.map(({ name, label }) => (
-            <Field key={name} label={label} required group error={errors[name]}>
-              <div className="flex gap-2">
-                <Choice type="radio" value="yes" label="Yes" className="flex-1" {...register(name)} />
-                <Choice type="radio" value="no" label="No" className="flex-1" {...register(name)} />
-              </div>
-            </Field>
-          ))}
-        </div>
         <div className="mt-6">
           <Field label="Special setup notes" error={errors.setupNotes}>
             <textarea className="field-input" rows={3} {...register("setupNotes")} />
           </Field>
-        </div>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <FileUploadField field="logo" files={files} setFiles={setFiles} />
-          <FileUploadField field="productImages" files={files} setFiles={setFiles} />
         </div>
       </Section>
 

@@ -71,20 +71,12 @@ async function ApplicationList() {
                   <Row label="Phone" value={a.phone} />
                   <Row label="Instagram" value={a.instagram} />
                   <Row label="Website" value={a.website} />
-                  <Row label="Address" value={a.businessAddress} />
                   <Row label="Other category" value={a.otherCategory} />
-                  <Row label="Preferred dates" value={a.availableAllDates ? "Available for all dates" : prefs.join(" → ")} />
+                  <Row label="Preferred dates" value={prefs.join(" → ")} />
                   <Row label="Availability notes" value={a.availabilityNotes} />
-                  <Row label="Space" value={a.spaceNeeded + (a.spaceOther ? ` (${a.spaceOther})` : "")} />
                   <Row
-                    label="Needs"
-                    value={[
-                      a.needsElectricity === "yes" && "Electricity",
-                      a.needsTable === "yes" && "Table",
-                      a.needsChairs === "yes" && "Chairs",
-                    ]
-                      .filter(Boolean)
-                      .join(", ") || "Nothing extra"}
+                    label="Electricity"
+                    value={a.needsElectricity === "yes" ? `Yes${a.electricityDetails ? ` · ${a.electricityDetails}` : ""}` : "No"}
                   />
                   <Row label="Setup notes" value={a.setupNotes} />
                   {isFoodVendor(a.categories) && (
