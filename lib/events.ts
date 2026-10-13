@@ -15,6 +15,7 @@ export type MarketEvent = {
   slug: string;
   name: string;
   tagline: string[];
+  venueIntro: string; // small line above the venue name, e.g. "At the Historic"
   venue: string;
   address: string;
   logo: string; // in public/
@@ -31,7 +32,8 @@ export const events: MarketEvent[] = [
     slug: "harlem-night-market",
     name: "Harlem Night Market",
     tagline: ["Music", "Food", "Makers", "Culture", "Community"],
-    venue: "The Historic La Marqueta",
+    venueIntro: "At the Historic",
+    venue: "La Marqueta",
     address: "116th & Park Avenue",
     logo: "/logos/harlem-night-market.png",
     producers: [
