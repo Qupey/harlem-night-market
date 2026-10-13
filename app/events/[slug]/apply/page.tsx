@@ -31,7 +31,9 @@ export default async function ApplyPage({ params }: PageProps<"/events/[slug]/ap
           <Venue event={event} />
         </div>
         <p className="mt-6 text-center text-sm text-muted">
-          It takes about 10 minutes. Fields marked <span className="text-orange">*</span> are required.
+          To apply, fill out the form below.
+          <br />
+          Fields marked <span className="text-orange">*</span> are required.
         </p>
       </header>
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6">
