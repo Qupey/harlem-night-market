@@ -40,11 +40,22 @@ of `app/globals.css`.
 
 ## Where submissions are stored
 
-For now, applications are saved to `data/applications.json` and uploaded
-files to `data/uploads/<application id>/`. That works on a single server or
-your own computer, but most hosts (Vercel, Netlify) don't keep files between
-requests, so before going live the storage in `lib/store.ts` should move to
-Supabase (database + file storage). Only that file needs to change.
+With `SUPABASE_URL` and `SUPABASE_SECRET_KEY` set, applications go to Supabase:
+the database tables `vendor_applications`, `vendor_date_preferences`,
+`food_vendor_details`, `menu_items` and `uploaded_documents`, and uploaded files
+go to the private `vendor-documents` storage bucket. Without them (handy on a
+laptop) everything is saved to `data/` instead.
+
+### One-time Supabase setup
+
+1. In Supabase, open **SQL Editor**, click **New query**, paste the whole of
+   `supabase/schema.sql`, and click **Run**. It's safe to run again.
+2. From **Project Settings > API**, copy the Project URL and the **secret**
+   key (`service_role`) into your hosting settings as `SUPABASE_URL` and
+   `SUPABASE_SECRET_KEY`. Never commit or share the secret key.
+
+Row Level Security is on for every table with no public policies, so only
+the website's server can read or write applications.
 
 ## Getting the spreadsheet into Google Sheets
 
@@ -59,4 +70,6 @@ per food item).
 - `lib/schema.ts`: field options and validation rules, shared by the form and the server
 - `app/api/applications/route.ts`: receives submissions and checks them again on the server
 - `lib/export.ts`: builds the Excel and CSV files
+- `lib/store.ts`: picks Supabase (`lib/store-supabase.ts`) or local files (`lib/store-local.ts`)
+- `supabase/schema.sql`: database tables, the save function, and the storage bucket
 - `proxy.ts`: admin password check

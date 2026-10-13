@@ -80,6 +80,14 @@ export async function POST(request: Request) {
     }
   }
 
-  const saved = await saveApplication(event.slug, data, uploads);
-  return NextResponse.json({ id: saved.id }, { status: 201 });
+  try {
+    const saved = await saveApplication(event.slug, data, uploads);
+    return NextResponse.json({ id: saved.id }, { status: 201 });
+  } catch (err) {
+    console.error("Saving vendor application failed:", err);
+    return NextResponse.json(
+      { error: "We couldn't save your application just now. Please try again in a few minutes." },
+      { status: 500 },
+    );
+  }
 }
