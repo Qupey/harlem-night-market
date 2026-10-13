@@ -9,6 +9,8 @@ export type EventDate = {
   time?: string;
 };
 
+export type FooterLogo = { name: string; logo: string; height: number }; // height in px in the footer
+
 export type MarketEvent = {
   slug: string;
   name: string;
@@ -16,7 +18,8 @@ export type MarketEvent = {
   venue: string;
   address: string;
   logo: string; // in public/
-  partners: { name: string; logo: string; height: number }[]; // height in px for the footer row
+  producers: FooterLogo[]; // footer: "Produced by"
+  partners: FooterLogo[]; // footer: "In partnership with"
   description: string;
   registrationOpen: boolean;
   applicationDeadline?: string;
@@ -31,13 +34,15 @@ export const events: MarketEvent[] = [
     venue: "The Historic La Marqueta",
     address: "116th & Park Avenue",
     logo: "/logos/harlem-night-market.png",
-    partners: [
+    producers: [
       { name: "Uptown Grand Central", logo: "/logos/uptown-grand-central.png", height: 52 },
       { name: "TBO Harlem", logo: "/logos/tbo-harlem.png", height: 60 },
-      { name: "La Marqueta", logo: "/logos/la-marqueta.png", height: 52 },
-      { name: "NYC Public Markets", logo: "/logos/nyc-public-markets.png", height: 56 },
-      { name: "NYC EDC", logo: "/logos/nyc-edc.png", height: 38 },
-      { name: "Qupey", logo: "/logos/qupey.png", height: 60 },
+    ],
+    partners: [
+      { name: "La Marqueta", logo: "/logos/la-marqueta.png", height: 39 },
+      { name: "NYC Public Markets", logo: "/logos/nyc-public-markets.png", height: 42 },
+      { name: "NYC EDC", logo: "/logos/nyc-edc.png", height: 29 },
+      { name: "Qupey", logo: "/logos/qupey.png", height: 45 },
     ],
     description:
       "We're looking for local makers, artists, and food vendors to join the Harlem Night Market on the first three Saturdays in December. Apply below and tell us which market nights work best for you.",

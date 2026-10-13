@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import type { MarketEvent } from "@/lib/events";
+import type { FooterLogo, MarketEvent } from "@/lib/events";
 
 // The Harlem Night Market logo (neon lettering over the purple tagline banner).
 export function BrandLockup({ event, size = "lg" }: { event: MarketEvent; size?: "lg" | "sm" }) {
@@ -46,17 +46,26 @@ export function Venue({ event }: { event: MarketEvent }) {
 export function SiteFooter({ event }: { event: MarketEvent }) {
   return (
     <footer className="mt-16 border-t border-line/70 bg-navy-deep/40">
-      <div className="mx-auto max-w-4xl px-4 py-10 text-center sm:px-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-muted">In partnership with</p>
-        <ul className="mt-6 flex flex-wrap items-center justify-center gap-x-8 gap-y-6 sm:gap-x-10">
-          {event.partners.map((p) => (
-            <li key={p.name}>
-              {/* eslint-disable-next-line @next/next/no-img-element -- small pre-sized logos */}
-              <img src={p.logo} alt={p.name} style={{ height: p.height }} className="w-auto" />
-            </li>
-          ))}
-        </ul>
+      <div className="mx-auto max-w-4xl space-y-10 px-4 py-10 text-center sm:px-6">
+        <LogoRow title="Produced by" logos={event.producers} />
+        <LogoRow title="In partnership with" logos={event.partners} />
       </div>
     </footer>
+  );
+}
+
+function LogoRow({ title, logos }: { title: string; logos: FooterLogo[] }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-[0.25em] text-muted">{title}</p>
+      <ul className="mt-6 flex flex-wrap items-center justify-center gap-x-8 gap-y-6 sm:gap-x-10">
+        {logos.map((p) => (
+          <li key={p.name}>
+            {/* eslint-disable-next-line @next/next/no-img-element -- small pre-sized logos */}
+            <img src={p.logo} alt={p.name} style={{ height: p.height }} className="w-auto" />
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
