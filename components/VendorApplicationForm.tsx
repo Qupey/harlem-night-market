@@ -201,10 +201,11 @@ export function VendorApplicationForm({ eventSlug, dates }: { eventSlug: string;
           </p>
           <ul className="space-y-1 pl-1">
             <li>
-              <span className="font-semibold text-orange">Hot food vendors:</span> $55
+              <span className="font-semibold text-orange">Hot food vendors:</span> $55 per market date
             </li>
             <li>
-              <span className="font-semibold text-orange">Makers:</span> $30
+              <span className="font-semibold text-orange">Makers, packaged food and dessert vendors:</span> $30 per
+              market date
             </li>
           </ul>
           <p>
