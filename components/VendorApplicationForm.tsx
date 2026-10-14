@@ -193,6 +193,26 @@ export function VendorApplicationForm({ eventSlug, dates }: { eventSlug: string;
         </div>
       </Section>
 
+      <Section title="Vendor fees">
+        <div className="space-y-3 text-sm text-cream">
+          <p>
+            Vendors are invited into the market based on their submissions. If you are selected, the fee to participate
+            is:
+          </p>
+          <ul className="space-y-1 pl-1">
+            <li>
+              <span className="font-semibold text-orange">Hot food vendors:</span> $55
+            </li>
+            <li>
+              <span className="font-semibold text-orange">Makers:</span> $30
+            </li>
+          </ul>
+          <p>
+            We will notify you if you are accepted. Payment is then due to lock in your space.
+          </p>
+        </div>
+      </Section>
+
       <Section title="Agreements">
         <div className="space-y-2">
           {AGREEMENTS.filter((a) => food || a.key !== "foodPermits").map((a) => (
