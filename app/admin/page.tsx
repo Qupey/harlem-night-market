@@ -15,6 +15,9 @@ export default function AdminPage() {
           <h1 className="mt-2 display text-4xl text-orange">Vendor applications</h1>
         </div>
         <div className="flex flex-wrap gap-2">
+          <a href="/admin/faq" className="btn-secondary">
+            Manage FAQ
+          </a>
           <a href="/api/admin/export?format=xlsx" className="btn-primary px-5 py-2 text-sm">
             Download Excel (.xlsx)
           </a>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BrandLockup, DateTiles, SiteFooter, Venue } from "@/components/Brand";
+import { FaqPanel } from "@/components/FaqPanel";
 import { events, getEvent } from "@/lib/events";
 
 export function generateStaticParams() {
@@ -48,6 +49,8 @@ export default async function EventPage({ params }: PageProps<"/events/[slug]">)
             <p className="rounded-lg bg-panel px-4 py-3 text-cream">Vendor applications are closed.</p>
           )}
         </div>
+
+        <FaqPanel eventSlug={event.slug} />
       </main>
       <SiteFooter event={event} />
     </>
