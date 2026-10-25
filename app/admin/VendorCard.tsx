@@ -22,29 +22,40 @@ type CardProps = {
 export function VendorCard({ app: a, back, returnTo, anchor, open, badge, forDate }: CardProps) {
   const dates = a.assignedDates ?? [];
   const booked = forDate ? dates.includes(forDate) : dates.length > 0;
-  // Teal: booked for a market date. Gold stripe: accepted (or booked elsewhere) but not here. Dimmed: declined.
+  // Booked for a market date: solid teal row. Accepted but not booked here: gold outline. Declined: faded.
+  const needsDate = !booked && (a.status === "accepted" || dates.length > 0);
   const tone = booked
-    ? "border-teal/60 border-l-4 border-l-teal bg-teal/10"
-    : a.status === "accepted" || dates.length > 0
-      ? "border-line border-l-2 border-l-gold bg-panel"
+    ? "border-2 border-teal bg-panel shadow-lg shadow-teal/30"
+    : needsDate
+      ? "border-2 border-gold bg-panel"
       : a.status === "rejected"
-        ? "border-line bg-panel opacity-60"
+        ? "border-line bg-panel opacity-45"
         : "border-line bg-panel";
+  // On the teal row, every piece of text, badge and the arrow turns navy so it stays readable.
+  const summaryTone = booked
+    ? "bg-teal group-open:rounded-b-none [&_*]:!border-navy/50 [&_*]:!text-navy [&_.rounded-full]:!bg-navy/10"
+    : "hover:bg-navy-deep/30";
   const event = getEvent(a.eventSlug);
   const prefs = [a.firstChoice, a.secondChoice, a.thirdChoice].filter(Boolean).map((d) => dateLabel(event, d));
   return (
     <li id={anchor} className={`scroll-mt-4 rounded-xl border ${tone}`}>
       <details data-app className="group" open={open}>
-        <summary className="flex cursor-pointer list-none items-start gap-3 rounded-xl px-4 py-3 hover:bg-navy-deep/30 [&::-webkit-details-marker]:hidden">
+        <summary
+          className={`flex cursor-pointer list-none items-start gap-3 rounded-[10px] px-4 py-3 [&::-webkit-details-marker]:hidden ${summaryTone}`}
+        >
           <span
             aria-hidden
-            className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-orange text-sm text-orange transition-transform group-open:rotate-90"
+            className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-sm transition-transform group-open:rotate-90 ${
+              booked ? "" : "border-orange text-orange"
+            }`}
           >
             ▶
           </span>
           <span className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <span>
-              <span className="font-semibold text-cream">{a.businessName}</span>
+              <span className={`font-semibold text-cream ${booked ? "text-lg font-extrabold" : ""}`}>
+                {a.businessName}
+              </span>
               <span className="text-muted"> · {a.contactName}</span>
               {isFoodVendor(a.categories) && (
                 <span className="ml-2 rounded-full bg-orange/20 px-2 py-0.5 text-xs font-medium text-orange">Food</span>
@@ -60,7 +71,17 @@ export function VendorCard({ app: a, back, returnTo, anchor, open, badge, forDat
               })}
             </span>
           </span>
-          <span className="shrink-0 text-xs font-medium text-teal underline">
+          {booked && (
+            <span className="shrink-0 rounded-lg border-2 bg-cream px-3 py-1 text-sm font-extrabold uppercase tracking-wider">
+              ✓ Booked · {dates.map(shortDate).join(", ")}
+            </span>
+          )}
+          {needsDate && (
+            <span className="shrink-0 rounded-lg bg-gold px-3 py-1 text-sm font-extrabold uppercase tracking-wider text-navy-deep">
+              {dates.length > 0 ? `Booked other date · ${dates.map(shortDate).join(", ")}` : "Accepted · Needs date"}
+            </span>
+          )}
+          <span className="shrink-0 pt-1 text-xs font-medium text-teal underline">
             <span className="group-open:hidden">Expand</span>
             <span className="hidden group-open:inline">Collapse</span>
           </span>
