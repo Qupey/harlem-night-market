@@ -2,13 +2,15 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { events } from "@/lib/events";
+import { STATUS_LABELS } from "@/lib/selection";
 import { listApplications, type StoredApplication } from "@/lib/store";
 import { ExpandAll } from "../ExpandAll";
 import { SavedNotice, VendorCard } from "../VendorCard";
+import { StatusFilter } from "./StatusFilter";
 
 export const metadata = { title: "Requested dates | Harlem Night Market admin" };
 
-type Params = { date?: string; saved?: string; open?: string };
+type Params = { date?: string; status?: string; saved?: string; open?: string };
 
 const ALL_DATES = events.flatMap((e) => e.dates);
 const RANKS = ["1st choice", "2nd choice", "3rd choice"];
@@ -43,7 +45,15 @@ async function Requests({ searchParams }: { searchParams: Promise<Params> }) {
   const params = await searchParams;
   const apps = await listApplications();
   const selected = ALL_DATES.find((d) => d.id === params.date);
-  const back = selected ? `date=${selected.id}` : "";
+  const status = ["pending", "accepted", "rejected"].includes(params.status ?? "") ? params.status! : "";
+  const back = new URLSearchParams(
+    Object.entries({ date: selected?.id, status }).filter((e): e is [string, string] => !!e[1]),
+  ).toString();
+  // Date tabs keep the chosen status.
+  const tabHref = (date?: string) => {
+    const qs = new URLSearchParams(Object.entries({ date, status }).filter((e): e is [string, string] => !!e[1]));
+    return qs.size ? `/admin/requests?${qs}` : "/admin/requests";
+  };
   const tab = "rounded-full px-4 py-1.5 text-sm font-medium";
   const tabClass = (active: boolean) =>
     `${tab} ${active ? "bg-orange text-navy-deep" : "border border-line text-cream hover:border-orange"}`;
@@ -53,13 +63,13 @@ async function Requests({ searchParams }: { searchParams: Promise<Params> }) {
       <SavedNotice saved={params.saved} />
       <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
         <nav className="flex flex-wrap gap-2" aria-label="Market date">
-          <Link href="/admin/requests" className={tabClass(!selected)} aria-current={!selected ? "page" : undefined}>
+          <Link href={tabHref()} className={tabClass(!selected)} aria-current={!selected ? "page" : undefined}>
             All
           </Link>
           {ALL_DATES.map((d) => (
             <Link
               key={d.id}
-              href={`/admin/requests?date=${d.id}`}
+              href={tabHref(d.id)}
               className={tabClass(selected?.id === d.id)}
               aria-current={selected?.id === d.id ? "page" : undefined}
             >
@@ -67,12 +77,15 @@ async function Requests({ searchParams }: { searchParams: Promise<Params> }) {
             </Link>
           ))}
         </nav>
-        <ExpandAll />
+        <div className="flex flex-wrap items-center gap-4">
+          <StatusFilter value={status} />
+          <ExpandAll />
+        </div>
       </div>
       <div className="mt-6 space-y-8">
         {(selected ? [selected] : ALL_DATES).map((d) => {
           const vendors = apps
-            .filter((a) => choiceRank(a, d.id) >= 0)
+            .filter((a) => choiceRank(a, d.id) >= 0 && (!status || a.status === status))
             .sort((x, y) => choiceRank(x, d.id) - choiceRank(y, d.id) || x.businessName.localeCompare(y.businessName));
           const firsts = vendors.filter((a) => choiceRank(a, d.id) === 0).length;
           return (
@@ -80,11 +93,12 @@ async function Requests({ searchParams }: { searchParams: Promise<Params> }) {
               <h2 className="display text-2xl text-teal">
                 {d.label}{" "}
                 <span className="text-base text-muted">
-                  · {vendors.length} requested · {firsts} as 1st choice
+                  · {vendors.length} {status ? STATUS_LABELS[status as StoredApplication["status"]].toLowerCase() : "requested"} ·{" "}
+                  {firsts} as 1st choice
                 </span>
               </h2>
               {vendors.length === 0 ? (
-                <p className="mt-4 text-sm text-muted">No applicants picked this date yet.</p>
+                <p className="mt-4 text-sm text-muted">{status ? "No vendors with this status for this date." : "No applicants picked this date yet."}</p>
               ) : (
                 <ul className="mt-4 space-y-3">
                   {vendors.map((a) => {
