@@ -158,6 +158,7 @@ type Row = {
   status: StoredApplication["status"];
   assigned_dates?: string[]; // added with add-vendor-selection.sql; missing until it's run
   market_category?: string | null;
+  starred?: boolean; // added with add-vendor-star.sql
   submitted_at: string;
   vendor_date_preferences: { event_date: string; rank: number }[];
   // One-to-one, so PostgREST returns an object (or null); accept an array too.
@@ -206,6 +207,7 @@ function toStored(r: Row): StoredApplication {
     status: r.status,
     assignedDates: r.assigned_dates ?? [],
     marketCategory: r.market_category ?? "",
+    starred: r.starred ?? false,
     submittedAt: r.submitted_at,
     contactName: r.contact_name,
     businessName: r.business_name,
@@ -298,4 +300,15 @@ async function updateSelection(applicationId: string, s: Selection): Promise<Sel
   throw new Error(`Saving vendor selection failed: ${error.message}`);
 }
 
-export const supabaseStore: ApplicationStore = { saveApplication, listApplications, readUpload, updateSelection };
+async function setStarred(applicationId: string, starred: boolean): Promise<SelectionResult> {
+  const { data, error } = await db()
+    .from("vendor_applications")
+    .update({ starred, updated_at: new Date().toISOString() })
+    .eq("id", applicationId)
+    .select("id");
+  if (!error) return { ok: data.length > 0 };
+  if (/starred/.test(error.message)) return { ok: false, columnsMissing: true };
+  throw new Error(`Saving vendor star failed: ${error.message}`);
+}
+
+export const supabaseStore: ApplicationStore = { saveApplication, listApplications, readUpload, updateSelection, setStarred };

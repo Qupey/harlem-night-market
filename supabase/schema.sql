@@ -42,6 +42,8 @@ alter table public.vendor_applications add column if not exists product_details 
 -- Vendor selection, set in /admin: assigned market dates and market category.
 alter table public.vendor_applications add column if not exists assigned_dates date[] not null default '{}';
 alter table public.vendor_applications add column if not exists market_category text;
+-- Star in /admin: a vendor organizers like but haven't placed yet.
+alter table public.vendor_applications add column if not exists starred boolean not null default false;
 
 create table if not exists public.vendor_date_preferences (
   id uuid primary key default gen_random_uuid(),

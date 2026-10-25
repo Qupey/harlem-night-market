@@ -23,6 +23,7 @@ export type StoredApplication = ApplicationData & {
   files: StoredFile[];
   assignedDates?: string[]; // market dates this vendor is booked for (event date ids)
   marketCategory?: string; // one of MARKET_CATEGORIES
+  starred?: boolean; // organizers like this vendor but haven't placed them yet
 };
 
 export type Selection = Pick<StoredApplication, "status"> & { assignedDates: string[]; marketCategory: string };
@@ -38,8 +39,10 @@ export type ApplicationStore = {
   listApplications(eventSlug?: string): Promise<StoredApplication[]>;
   readUpload(applicationId: string, fileName: string): Promise<{ meta: StoredFile; data: Buffer } | null>;
   updateSelection(applicationId: string, selection: Selection): Promise<SelectionResult>;
+  // columnsMissing: supabase/add-vendor-star.sql hasn't been run yet, so nothing was saved.
+  setStarred(applicationId: string, starred: boolean): Promise<SelectionResult>;
 };
 
 const store: ApplicationStore = supabaseConfigured() ? supabaseStore : localStore;
 
-export const { saveApplication, listApplications, readUpload, updateSelection } = store;
+export const { saveApplication, listApplications, readUpload, updateSelection, setStarred } = store;

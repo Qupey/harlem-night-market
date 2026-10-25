@@ -2,7 +2,7 @@ import { dateLabel, events, getEvent } from "@/lib/events";
 import { isFoodVendor, UPLOAD_FIELDS } from "@/lib/schema";
 import { MARKET_CATEGORIES, STATUS_CHOICES, STATUS_LABELS } from "@/lib/selection";
 import type { StoredApplication } from "@/lib/store";
-import { saveSelectionAction } from "./actions";
+import { saveSelectionAction, toggleStarAction } from "./actions";
 
 // An expandable applicant card with the status / dates / category form, shared by /admin and /admin/requests.
 
@@ -39,18 +39,30 @@ export function VendorCard({ app: a, back, returnTo, anchor, open, badge, forDat
   const prefs = [a.firstChoice, a.secondChoice, a.thirdChoice].filter(Boolean).map((d) => dateLabel(event, d));
   return (
     <li id={anchor} className={`scroll-mt-4 rounded-xl border ${tone}`}>
+      {/* The star button sits in the summary row; its form lives out here because forms can't go inside <summary>. */}
+      <form id={`star-${anchor}`} action={toggleStarAction} className="hidden">
+        <input type="hidden" name="id" value={a.id} />
+        <input type="hidden" name="starred" value={a.starred ? "0" : "1"} />
+        <input type="hidden" name="back" value={back} />
+        <input type="hidden" name="returnTo" value={returnTo} />
+        <input type="hidden" name="anchor" value={anchor} />
+      </form>
       <details data-app className="group" open={open}>
         <summary
           className={`flex cursor-pointer list-none items-start gap-3 rounded-[10px] px-4 py-3 [&::-webkit-details-marker]:hidden ${summaryTone}`}
         >
-          <span
-            aria-hidden
-            className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-sm transition-transform group-open:rotate-90 ${
-              booked ? "" : "border-orange text-orange"
+          <button
+            type="submit"
+            form={`star-${anchor}`}
+            title={a.starred ? "Starred for consideration (click to remove)" : "Star for consideration"}
+            aria-label={a.starred ? `Remove star from ${a.businessName}` : `Star ${a.businessName} for consideration`}
+            aria-pressed={!!a.starred}
+            className={`-ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xl leading-none hover:scale-110 ${
+              a.starred ? "text-gold" : "text-muted/60 hover:text-gold"
             }`}
           >
-            ▶
-          </span>
+            {a.starred ? "★" : "☆"}
+          </button>
           <span className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <span>
               <span className={`font-semibold text-cream ${booked ? "text-lg font-extrabold" : ""}`}>
@@ -193,6 +205,13 @@ export function SavedNotice({ saved }: { saved?: string }) {
       <p className="mt-6 rounded-lg border border-pink bg-pink/10 px-4 py-3 text-sm text-cream">
         Status saved, but market dates and category were not: run supabase/add-vendor-selection.sql in the Supabase SQL
         Editor first, then save again.
+      </p>
+    );
+  }
+  if (saved === "star-missing") {
+    return (
+      <p className="mt-6 rounded-lg border border-pink bg-pink/10 px-4 py-3 text-sm text-cream">
+        Star not saved: run supabase/add-vendor-star.sql in the Supabase SQL Editor first, then try again.
       </p>
     );
   }

@@ -84,12 +84,16 @@ async function readUpload(applicationId: string, fileName: string) {
 }
 
 async function updateSelection(applicationId: string, selection: Selection): Promise<SelectionResult> {
+  return updateFields(applicationId, selection);
+}
+
+async function updateFields(applicationId: string, fields: Partial<StoredApplication>): Promise<SelectionResult> {
   let found = false;
   const job = writeQueue.then(async () => {
     const apps = await readAll();
     const app = apps.find((a) => a.id === applicationId);
     if (!app) return;
-    Object.assign(app, selection);
+    Object.assign(app, fields);
     found = true;
     await writeAll(apps);
   });
@@ -98,4 +102,8 @@ async function updateSelection(applicationId: string, selection: Selection): Pro
   return { ok: found };
 }
 
-export const localStore: ApplicationStore = { saveApplication, listApplications, readUpload, updateSelection };
+async function setStarred(applicationId: string, starred: boolean): Promise<SelectionResult> {
+  return updateFields(applicationId, { starred });
+}
+
+export const localStore: ApplicationStore = { saveApplication, listApplications, readUpload, updateSelection, setStarred };
