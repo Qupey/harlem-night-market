@@ -2,7 +2,7 @@ import "server-only";
 import ExcelJS from "exceljs";
 import { dateLabel, getEvent } from "./events";
 import { AGREEMENTS, isFoodVendor, LICENSE_OPTIONS, UPLOAD_FIELDS } from "./schema";
-import { STATUS_LABELS } from "./selection";
+import { MARKET_CATEGORIES, STATUS_LABELS } from "./selection";
 import type { StoredApplication } from "./store";
 
 type Column = { header: string; width: number; value: (a: StoredApplication) => string };
@@ -124,4 +124,41 @@ export function toCsv(apps: StoredApplication[]): string {
   ];
   // Leading BOM so Excel opens accented characters correctly.
   return "﻿" + lines.join("\r\n") + "\r\n";
+}
+
+// Per-market vendor lists: accepted vendors on one market date, by category.
+const MARKET_HEADERS = ["Category", "Business Name", "Contact Name", "Email", "Phone"];
+const MARKET_WIDTHS = [16, 30, 24, 32, 16];
+
+const categoryRank = (c: string | undefined) => {
+  const i = (MARKET_CATEGORIES as readonly string[]).indexOf(c ?? "");
+  return i === -1 ? MARKET_CATEGORIES.length : i;
+};
+
+/** Accepted vendors assigned to a date, sorted by category then business name. */
+export function vendorsForDate(apps: StoredApplication[], dateId: string): StoredApplication[] {
+  return apps
+    .filter((a) => a.status === "accepted" && (a.assignedDates ?? []).includes(dateId))
+    .sort((a, b) => categoryRank(a.marketCategory) - categoryRank(b.marketCategory) || a.businessName.localeCompare(b.businessName));
+}
+
+const marketRow = (a: StoredApplication) => [a.marketCategory || "No category", a.businessName, a.contactName, a.email, a.phone];
+
+export async function toMarketXlsx(markets: { name: string; apps: StoredApplication[] }[]): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "Harlem Night Market";
+  wb.created = new Date();
+  for (const m of markets) {
+    const sheet = wb.addWorksheet(m.name, { views: [{ state: "frozen", ySplit: 1 }] });
+    sheet.columns = MARKET_HEADERS.map((header, i) => ({ header, width: MARKET_WIDTHS[i] }));
+    for (const a of m.apps) sheet.addRow(marketRow(a));
+    styleHeader(sheet);
+  }
+  return Buffer.from(await wb.xlsx.writeBuffer());
+}
+
+export function toMarketCsv(apps: StoredApplication[]): string {
+  const cell = (v: string) => `"${plain(v).replace(/"/g, '""')}"`;
+  const lines = [MARKET_HEADERS.map(cell).join(","), ...apps.map((a) => marketRow(a).map(cell).join(","))];
+  return "\uFEFF" + lines.join("\r\n") + "\r\n";
 }

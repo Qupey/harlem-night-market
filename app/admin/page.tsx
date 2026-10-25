@@ -22,6 +22,9 @@ export default function AdminPage({ searchParams }: PageProps<"/admin">) {
           <h1 className="mt-2 display text-4xl text-orange">Vendor applications</h1>
         </div>
         <div className="flex flex-wrap gap-2">
+          <a href="/admin/markets" className="btn-secondary">
+            Vendors by market
+          </a>
           <a href="/admin/faq" className="btn-secondary">
             Manage FAQ
           </a>
