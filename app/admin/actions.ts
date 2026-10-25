@@ -25,6 +25,10 @@ export async function saveSelectionAction(form: FormData) {
   // Back to the same filtered list, with a note on what happened.
   const back = new URLSearchParams(String(form.get("back") ?? ""));
   back.set("saved", result.columnsMissing ? "status-only" : "1");
-  back.set("open", id);
-  redirect(`/admin?${back}#app-${id}`);
+  // Reopen the card that was saved; the same vendor can appear more than once on /admin/requests.
+  const returnTo = form.get("returnTo") === "/admin/requests" ? "/admin/requests" : "/admin";
+  const formAnchor = String(form.get("anchor") ?? "");
+  const anchor = /^[\w-]+$/.test(formAnchor) ? formAnchor : `app-${id}`;
+  back.set("open", anchor);
+  redirect(`${returnTo}?${back}#${anchor}`);
 }
