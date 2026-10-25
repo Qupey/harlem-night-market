@@ -98,6 +98,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Params> }) {
                         returnTo="/admin/requests"
                         anchor={anchor}
                         open={params.open === anchor}
+                        forDate={d.id}
                         badge={
                           <span
                             className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${

@@ -16,13 +16,24 @@ type CardProps = {
   anchor: string; // element id, unique on the page
   open?: boolean;
   badge?: React.ReactNode; // extra badge before the status
+  forDate?: string; // on a per-date list, only a booking for this date counts
 };
 
-export function VendorCard({ app: a, back, returnTo, anchor, open, badge }: CardProps) {
+export function VendorCard({ app: a, back, returnTo, anchor, open, badge, forDate }: CardProps) {
+  const dates = a.assignedDates ?? [];
+  const booked = forDate ? dates.includes(forDate) : dates.length > 0;
+  // Teal: booked for a market date. Gold stripe: accepted (or booked elsewhere) but not here. Dimmed: declined.
+  const tone = booked
+    ? "border-teal/60 border-l-4 border-l-teal bg-teal/10"
+    : a.status === "accepted" || dates.length > 0
+      ? "border-line border-l-2 border-l-gold bg-panel"
+      : a.status === "rejected"
+        ? "border-line bg-panel opacity-60"
+        : "border-line bg-panel";
   const event = getEvent(a.eventSlug);
   const prefs = [a.firstChoice, a.secondChoice, a.thirdChoice].filter(Boolean).map((d) => dateLabel(event, d));
   return (
-    <li id={anchor} className="scroll-mt-4 rounded-xl border border-line bg-panel">
+    <li id={anchor} className={`scroll-mt-4 rounded-xl border ${tone}`}>
       <details data-app className="group" open={open}>
         <summary className="flex cursor-pointer list-none items-start gap-3 rounded-xl px-4 py-3 hover:bg-navy-deep/30 [&::-webkit-details-marker]:hidden">
           <span
