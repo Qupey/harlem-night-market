@@ -8,7 +8,7 @@ import { SavedNotice, VendorCard } from "../VendorCard";
 
 export const metadata = { title: "Requested dates | Harlem Night Market admin" };
 
-type Params = { saved?: string; open?: string };
+type Params = { date?: string; saved?: string; open?: string };
 
 const ALL_DATES = events.flatMap((e) => e.dates);
 const RANKS = ["1st choice", "2nd choice", "3rd choice"];
@@ -42,15 +42,35 @@ async function Requests({ searchParams }: { searchParams: Promise<Params> }) {
   await connection();
   const params = await searchParams;
   const apps = await listApplications();
+  const selected = ALL_DATES.find((d) => d.id === params.date);
+  const back = selected ? `date=${selected.id}` : "";
+  const tab = "rounded-full px-4 py-1.5 text-sm font-medium";
+  const tabClass = (active: boolean) =>
+    `${tab} ${active ? "bg-orange text-navy-deep" : "border border-line text-cream hover:border-orange"}`;
 
   return (
     <>
       <SavedNotice saved={params.saved} />
-      <div className="mt-6 flex justify-end">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
+        <nav className="flex flex-wrap gap-2" aria-label="Market date">
+          <Link href="/admin/requests" className={tabClass(!selected)} aria-current={!selected ? "page" : undefined}>
+            All
+          </Link>
+          {ALL_DATES.map((d) => (
+            <Link
+              key={d.id}
+              href={`/admin/requests?date=${d.id}`}
+              className={tabClass(selected?.id === d.id)}
+              aria-current={selected?.id === d.id ? "page" : undefined}
+            >
+              {d.short}
+            </Link>
+          ))}
+        </nav>
         <ExpandAll />
       </div>
-      <div className="mt-3 space-y-8">
-        {ALL_DATES.map((d) => {
+      <div className="mt-6 space-y-8">
+        {(selected ? [selected] : ALL_DATES).map((d) => {
           const vendors = apps
             .filter((a) => choiceRank(a, d.id) >= 0)
             .sort((x, y) => choiceRank(x, d.id) - choiceRank(y, d.id) || x.businessName.localeCompare(y.businessName));
@@ -74,7 +94,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Params> }) {
                       <VendorCard
                         key={a.id}
                         app={a}
-                        back=""
+                        back={back}
                         returnTo="/admin/requests"
                         anchor={anchor}
                         open={params.open === anchor}
