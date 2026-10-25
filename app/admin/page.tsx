@@ -5,8 +5,15 @@ import { isFoodVendor, UPLOAD_FIELDS } from "@/lib/schema";
 import { MARKET_CATEGORIES, STATUS_CHOICES, STATUS_LABELS } from "@/lib/selection";
 import { listApplications, type StoredApplication } from "@/lib/store";
 import { saveSelectionAction } from "./actions";
+import { ExpandAll } from "./ExpandAll";
 
-type Filters = { status?: string; date?: string; category?: string; saved?: string };
+type Filters = {
+  status?: string;
+  date?: string;
+  category?: string;
+  saved?: string;
+  open?: string;
+};
 
 const ALL_DATES = events.flatMap((e) => e.dates);
 const shortDate = (id: string) => ALL_DATES.find((d) => d.id === id)?.short ?? id;
@@ -37,8 +44,8 @@ export default function AdminPage({ searchParams }: PageProps<"/admin">) {
         </div>
       </div>
       <p className="mt-3 text-sm text-muted">
-        For Google Sheets, download the Excel file, then in Google Drive choose New, File upload, and open it with Google
-        Sheets.
+        For Google Sheets, download the Excel file, then in Google Drive choose New, File upload, and open it with
+        Google Sheets.
       </p>
       <Suspense fallback={<p className="mt-8 text-muted">Loading applications...</p>}>
         <ApplicationList searchParams={searchParams as Promise<Filters>} />
@@ -63,9 +70,11 @@ async function ApplicationList({ searchParams }: { searchParams: Promise<Filters
       (!filters.category || a.marketCategory === filters.category),
   );
   const back = new URLSearchParams(
-    Object.entries({ status: filters.status, date: filters.date, category: filters.category }).filter(
-      (e): e is [string, string] => !!e[1],
-    ),
+    Object.entries({
+      status: filters.status,
+      date: filters.date,
+      category: filters.category,
+    }).filter((e): e is [string, string] => !!e[1]),
   ).toString();
 
   return (
@@ -73,55 +82,94 @@ async function ApplicationList({ searchParams }: { searchParams: Promise<Filters
       <SavedNotice saved={filters.saved} />
       <AcceptedCounts apps={all} />
       <FilterBar filters={filters} />
-      <p className="mt-6 text-sm font-medium text-muted">
-        {apps.length === all.length ? all.length : `${apps.length} of ${all.length}`} application{all.length === 1 ? "" : "s"}
-      </p>
+      <div className="mt-6 flex items-center justify-between gap-4">
+        <p className="text-sm font-medium text-muted">
+          {apps.length === all.length ? all.length : `${apps.length} of ${all.length}`} application
+          {all.length === 1 ? "" : "s"}
+        </p>
+        <ExpandAll />
+      </div>
       <ul className="mt-3 space-y-3">
         {apps.map((a) => {
           const event = getEvent(a.eventSlug);
           const prefs = [a.firstChoice, a.secondChoice, a.thirdChoice].filter(Boolean).map((d) => dateLabel(event, d));
           return (
             <li key={a.id} id={`app-${a.id}`} className="scroll-mt-4 rounded-xl border border-line bg-panel">
-              <details>
-                <summary className="flex cursor-pointer list-none flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                  <span>
-                    <span className="font-semibold text-cream">{a.businessName}</span>
-                    <span className="text-muted"> · {a.contactName}</span>
-                    {isFoodVendor(a.categories) && (
-                      <span className="ml-2 rounded-full bg-orange/20 px-2 py-0.5 text-xs font-medium text-orange">Food</span>
-                    )}
-                    <StatusBadge status={a.status} />
-                    {a.status === "accepted" && (a.marketCategory || (a.assignedDates ?? []).length > 0) && (
-                      <span className="ml-2 text-xs text-teal">
-                        {[a.marketCategory, (a.assignedDates ?? []).map(shortDate).join(", ")].filter(Boolean).join(" · ")}
-                      </span>
-                    )}
+              <details data-app className="group" open={filters.open === a.id}>
+                <summary className="flex cursor-pointer list-none items-start gap-3 rounded-xl px-4 py-3 hover:bg-navy-deep/30 [&::-webkit-details-marker]:hidden">
+                  <span
+                    aria-hidden
+                    className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-orange text-sm text-orange transition-transform group-open:rotate-90"
+                  >
+                    ▶
                   </span>
-                  <span className="text-sm text-muted">
-                    {a.categories.join(", ")} · {new Date(a.submittedAt).toLocaleDateString("en-US", { timeZone: "America/New_York" })}
+                  <span className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <span>
+                      <span className="font-semibold text-cream">{a.businessName}</span>
+                      <span className="text-muted"> · {a.contactName}</span>
+                      {isFoodVendor(a.categories) && (
+                        <span className="ml-2 rounded-full bg-orange/20 px-2 py-0.5 text-xs font-medium text-orange">
+                          Food
+                        </span>
+                      )}
+                      <StatusBadge status={a.status} />
+                      <AssignmentChips app={a} />
+                    </span>
+                    <span className="text-sm text-muted">
+                      {a.categories.join(", ")} ·{" "}
+                      {new Date(a.submittedAt).toLocaleDateString("en-US", {
+                        timeZone: "America/New_York",
+                      })}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-xs font-medium text-teal underline">
+                    <span className="group-open:hidden">Expand</span>
+                    <span className="hidden group-open:inline">Collapse</span>
                   </span>
                 </summary>
                 <SelectionForm app={a} back={back} />
                 <dl className="grid gap-x-6 gap-y-2 border-t border-line px-4 py-4 text-sm sm:grid-cols-2">
-                  <Row label="Email" value={<a className="underline" href={`mailto:${a.email}`}>{a.email}</a>} />
+                  <Row
+                    label="Email"
+                    value={
+                      <a className="underline" href={`mailto:${a.email}`}>
+                        {a.email}
+                      </a>
+                    }
+                  />
                   <Row label="Phone" value={a.phone} />
                   <Row label="Instagram" value={a.instagram} />
                   <Row label="Website" value={a.website} />
                   <Row label="Other category" value={a.otherCategory} />
-                  <Row label="Additional details" wide value={a.productDetails && <span className="whitespace-pre-line">{a.productDetails}</span>} />
+                  <Row
+                    label="Additional details"
+                    wide
+                    value={a.productDetails && <span className="whitespace-pre-line">{a.productDetails}</span>}
+                  />
                   <Row label="Preferred dates" value={prefs.join(" → ")} />
                   <Row label="Availability notes" value={a.availabilityNotes} />
                   <Row
                     label="Electricity"
-                    value={a.needsElectricity === "yes" ? `Yes${a.electricityDetails ? ` · ${a.electricityDetails}` : ""}` : "No"}
+                    value={
+                      a.needsElectricity === "yes"
+                        ? `Yes${a.electricityDetails ? ` · ${a.electricityDetails}` : ""}`
+                        : "No"
+                    }
                   />
                   <Row label="Setup notes" value={a.setupNotes} />
                   {isFoodVendor(a.categories) && (
                     <>
-                      <Row label="Food types" value={a.foodTypes.join(", ") + (a.otherFoodType ? ` (${a.otherFoodType})` : "")} />
+                      <Row
+                        label="Food types"
+                        value={a.foodTypes.join(", ") + (a.otherFoodType ? ` (${a.otherFoodType})` : "")}
+                      />
                       <Row
                         label="Food handler license"
-                        value={[a.foodHandlerLicense?.replace("_", " "), a.licenseNumber, a.licenseExpiration && `exp. ${a.licenseExpiration}`]
+                        value={[
+                          a.foodHandlerLicense?.replace("_", " "),
+                          a.licenseNumber,
+                          a.licenseExpiration && `exp. ${a.licenseExpiration}`,
+                        ]
                           .filter(Boolean)
                           .join(" · ")}
                       />
@@ -287,8 +335,38 @@ function FilterBar({ filters }: { filters: Filters }) {
 
 function StatusBadge({ status }: { status: StoredApplication["status"] }) {
   const color =
-    status === "accepted" ? "bg-teal/20 text-teal" : status === "rejected" ? "bg-pink/20 text-pink" : "bg-line text-muted";
-  return <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${color}`}>{STATUS_LABELS[status] ?? status}</span>;
+    status === "accepted"
+      ? "bg-teal/20 text-teal"
+      : status === "rejected"
+        ? "bg-pink/20 text-pink"
+        : "bg-line text-muted";
+  return (
+    <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${color}`}>
+      {status === "accepted" && "✓ "}
+      {status === "rejected" && "✕ "}
+      {STATUS_LABELS[status] ?? status}
+    </span>
+  );
+}
+
+// Shown on the collapsed row: market dates (for accepted vendors) and category.
+function AssignmentChips({ app }: { app: StoredApplication }) {
+  const dates = app.assignedDates ?? [];
+  const chip = "ml-1.5 rounded-full px-2 py-0.5 text-xs font-medium";
+  return (
+    <>
+      {app.status !== "accepted" && dates.length === 0 ? null : dates.length === 0 ? (
+        <span className={`${chip} border border-dashed border-line text-muted`}>No dates yet</span>
+      ) : (
+        dates.map((d) => (
+          <span key={d} className={`${chip} bg-gold/20 text-gold`}>
+            {shortDate(d)}
+          </span>
+        ))
+      )}
+      {app.marketCategory && <span className={`${chip} bg-orange/20 text-orange`}>{app.marketCategory}</span>}
+    </>
+  );
 }
 
 function SelectionForm({ app, back }: { app: StoredApplication; back: string }) {
@@ -298,7 +376,10 @@ function SelectionForm({ app, back }: { app: StoredApplication; back: string }) 
     : [app.status, ...STATUS_CHOICES];
 
   return (
-    <form action={saveSelectionAction} className="flex flex-wrap items-end gap-x-6 gap-y-3 border-t border-line bg-navy-deep/30 px-4 py-4 text-sm">
+    <form
+      action={saveSelectionAction}
+      className="flex flex-wrap items-end gap-x-6 gap-y-3 border-t border-line bg-navy-deep/30 px-4 py-4 text-sm"
+    >
       <input type="hidden" name="id" value={app.id} />
       <input type="hidden" name="back" value={back} />
       <label className="block">
@@ -312,11 +393,16 @@ function SelectionForm({ app, back }: { app: StoredApplication; back: string }) 
         </select>
       </label>
       <fieldset>
-        <legend className="field-label">Market dates (if accepted)</legend>
+        <legend className="field-label">Market dates (optional)</legend>
         <div className="mt-1 flex flex-wrap gap-3">
           {dates.map((d) => (
             <label key={d.id} className="flex items-center gap-1.5 text-cream">
-              <input type="checkbox" name="assignedDates" value={d.id} defaultChecked={(app.assignedDates ?? []).includes(d.id)} />
+              <input
+                type="checkbox"
+                name="assignedDates"
+                value={d.id}
+                defaultChecked={(app.assignedDates ?? []).includes(d.id)}
+              />
               {d.short}
             </label>
           ))}

@@ -25,5 +25,6 @@ export async function saveSelectionAction(form: FormData) {
   // Back to the same filtered list, with a note on what happened.
   const back = new URLSearchParams(String(form.get("back") ?? ""));
   back.set("saved", result.columnsMissing ? "status-only" : "1");
+  back.set("open", id);
   redirect(`/admin?${back}#app-${id}`);
 }
