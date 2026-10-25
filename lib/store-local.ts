@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { ApplicationData } from "./schema";
-import type { ApplicationStore, StoredApplication, StoredFile, Upload } from "./store";
+import type { ApplicationStore, Selection, SelectionResult, StoredApplication, StoredFile, Upload } from "./store";
 
 // Local file storage: keeps everything in ./data so the site runs on a laptop
 // with no outside services. Used when Supabase isn't configured.
@@ -83,4 +83,19 @@ async function readUpload(applicationId: string, fileName: string) {
   return { meta, data: await readFile(path.join(UPLOAD_DIR, app.id, meta.fileName)) };
 }
 
-export const localStore: ApplicationStore = { saveApplication, listApplications, readUpload };
+async function updateSelection(applicationId: string, selection: Selection): Promise<SelectionResult> {
+  let found = false;
+  const job = writeQueue.then(async () => {
+    const apps = await readAll();
+    const app = apps.find((a) => a.id === applicationId);
+    if (!app) return;
+    Object.assign(app, selection);
+    found = true;
+    await writeAll(apps);
+  });
+  writeQueue = job.catch(() => {});
+  await job;
+  return { ok: found };
+}
+
+export const localStore: ApplicationStore = { saveApplication, listApplications, readUpload, updateSelection };

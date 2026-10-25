@@ -2,6 +2,7 @@ import "server-only";
 import ExcelJS from "exceljs";
 import { dateLabel, getEvent } from "./events";
 import { AGREEMENTS, isFoodVendor, LICENSE_OPTIONS, UPLOAD_FIELDS } from "./schema";
+import { STATUS_LABELS } from "./selection";
 import type { StoredApplication } from "./store";
 
 type Column = { header: string; width: number; value: (a: StoredApplication) => string };
@@ -20,7 +21,13 @@ function filesFor(a: StoredApplication, field: keyof typeof UPLOAD_FIELDS) {
 // One row per application. Shared by the Excel and CSV exports.
 const COLUMNS: Column[] = [
   { header: "Submitted", width: 20, value: (a) => new Date(a.submittedAt).toLocaleString("en-US", { timeZone: "America/New_York" }) },
-  { header: "Status", width: 11, value: (a) => a.status },
+  { header: "Status", width: 11, value: (a) => STATUS_LABELS[a.status] ?? a.status },
+  {
+    header: "Assigned Dates",
+    width: 24,
+    value: (a) => (a.assignedDates ?? []).map((d) => getEvent(a.eventSlug)?.dates.find((x) => x.id === d)?.short ?? d).join(", "),
+  },
+  { header: "Market Category", width: 16, value: (a) => a.marketCategory ?? "" },
   { header: "Event", width: 22, value: (a) => getEvent(a.eventSlug)?.name ?? a.eventSlug },
   { header: "Business Name", width: 26, value: (a) => a.businessName },
   { header: "Contact Name", width: 22, value: (a) => a.contactName },

@@ -39,6 +39,9 @@ create table if not exists public.vendor_applications (
 
 -- Columns added after the first launch (for databases created before them).
 alter table public.vendor_applications add column if not exists product_details text;
+-- Vendor selection, set in /admin: assigned market dates and market category.
+alter table public.vendor_applications add column if not exists assigned_dates date[] not null default '{}';
+alter table public.vendor_applications add column if not exists market_category text;
 
 create table if not exists public.vendor_date_preferences (
   id uuid primary key default gen_random_uuid(),

@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { isFoodVendor, type ApplicationData, type UploadField } from "./schema";
-import type { ApplicationStore, StoredApplication, StoredFile, Upload } from "./store";
+import type { ApplicationStore, Selection, SelectionResult, StoredApplication, StoredFile, Upload } from "./store";
 
 // Supabase storage. Tables and the private "vendor-documents" bucket are created
 // by supabase/schema.sql. The secret key stays on the server; Row Level Security
@@ -156,6 +156,8 @@ type Row = {
   setup_notes: string | null;
   agreements: ApplicationData["agreements"];
   status: StoredApplication["status"];
+  assigned_dates?: string[]; // added with add-vendor-selection.sql; missing until it's run
+  market_category?: string | null;
   submitted_at: string;
   vendor_date_preferences: { event_date: string; rank: number }[];
   // One-to-one, so PostgREST returns an object (or null); accept an array too.
@@ -202,6 +204,8 @@ function toStored(r: Row): StoredApplication {
     id: r.id,
     eventSlug: r.event_slug,
     status: r.status,
+    assignedDates: r.assigned_dates ?? [],
+    marketCategory: r.market_category ?? "",
     submittedAt: r.submitted_at,
     contactName: r.contact_name,
     businessName: r.business_name,
@@ -272,4 +276,26 @@ async function readUpload(applicationId: string, fileName: string) {
   return { meta, data: Buffer.from(await data.arrayBuffer()) };
 }
 
-export const supabaseStore: ApplicationStore = { saveApplication, listApplications, readUpload };
+async function updateSelection(applicationId: string, s: Selection): Promise<SelectionResult> {
+  const updatedAt = new Date().toISOString();
+  const { data, error } = await db()
+    .from("vendor_applications")
+    .update({ status: s.status, assigned_dates: s.assignedDates, market_category: s.marketCategory || null, updated_at: updatedAt })
+    .eq("id", applicationId)
+    .select("id");
+  if (!error) return { ok: data.length > 0 };
+
+  // Columns not added yet: save the status on its own so it isn't lost.
+  if (/assigned_dates|market_category/.test(error.message)) {
+    const retry = await db()
+      .from("vendor_applications")
+      .update({ status: s.status, updated_at: updatedAt })
+      .eq("id", applicationId)
+      .select("id");
+    if (retry.error) throw new Error(`Saving vendor status failed: ${retry.error.message}`);
+    return { ok: retry.data.length > 0, columnsMissing: true };
+  }
+  throw new Error(`Saving vendor selection failed: ${error.message}`);
+}
+
+export const supabaseStore: ApplicationStore = { saveApplication, listApplications, readUpload, updateSelection };
