@@ -2,23 +2,28 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-const OPTIONS = [
-  ["", "All vendors"],
-  ["pending", "Pending"],
-  ["accepted", "Accepted"],
-  ["rejected", "Declined"],
-] as const;
+export type Option = readonly [value: string, label: string];
 
-// Pulldown that limits the requested-dates list to one status, kept in the ?status= query param.
-export function StatusFilter({ value }: { value: string }) {
+// A pulldown that narrows the requested-dates list, kept in one query param (e.g. ?status=, ?category=).
+export function ParamSelect({
+  param,
+  label,
+  value,
+  options,
+}: {
+  param: string;
+  label: string;
+  value: string;
+  options: readonly Option[];
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
 
-  const onChange = (status: string) => {
+  const onChange = (v: string) => {
     const next = new URLSearchParams(params);
-    if (status) next.set("status", status);
-    else next.delete("status");
+    if (v) next.set(param, v);
+    else next.delete(param);
     next.delete("saved");
     next.delete("open");
     const qs = next.toString();
@@ -27,9 +32,9 @@ export function StatusFilter({ value }: { value: string }) {
 
   return (
     <label className="flex items-center gap-2 text-sm">
-      <span className="text-muted">Show</span>
+      <span className="text-muted">{label}</span>
       <select value={value} onChange={(e) => onChange(e.target.value)} className="field-input py-1.5">
-        {OPTIONS.map(([v, l]) => (
+        {options.map(([v, l]) => (
           <option key={v} value={v}>
             {l}
           </option>

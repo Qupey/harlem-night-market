@@ -2,15 +2,39 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { events } from "@/lib/events";
-import { STATUS_LABELS } from "@/lib/selection";
+import { MARKET_CATEGORIES, STATUS_LABELS } from "@/lib/selection";
 import { listApplications, type StoredApplication } from "@/lib/store";
 import { ExpandAll } from "../ExpandAll";
 import { SavedNotice, VendorCard } from "../VendorCard";
-import { StatusFilter } from "./StatusFilter";
+import { ParamSelect } from "./ParamSelect";
 
 export const metadata = { title: "Requested dates | Harlem Night Market admin" };
 
-type Params = { date?: string; status?: string; saved?: string; open?: string };
+type Params = { date?: string; status?: string; category?: string; saved?: string; open?: string };
+
+const STATUS_OPTIONS = [
+  ["", "All vendors"],
+  ["pending", "Pending"],
+  ["accepted", "Accepted"],
+  ["rejected", "Declined"],
+] as const;
+
+const CATEGORY_OPTIONS = [["", "All categories"], ...MARKET_CATEGORIES.map((c) => [c, c] as const)] as const;
+
+// Picked-on-the-application category → market category, for vendors not given one yet.
+const APPLIED_TO_MARKET: Record<string, (typeof MARKET_CATEGORIES)[number]> = {
+  "Hot food": "Hot Food",
+  Dessert: "Sweets",
+  "Packaged food": "Packaged Foods",
+  Beverages: "Drinks",
+};
+
+// The assigned market category wins; otherwise every category the vendor picked
+// (food ones mapped as above, anything non-food counts as Makers).
+function marketCategoriesOf(a: StoredApplication): string[] {
+  if (a.marketCategory) return [a.marketCategory];
+  return a.categories.map((c) => APPLIED_TO_MARKET[c] ?? "Makers");
+}
 
 const ALL_DATES = events.flatMap((e) => e.dates);
 const RANKS = ["1st choice", "2nd choice", "3rd choice"];
@@ -46,12 +70,13 @@ async function Requests({ searchParams }: { searchParams: Promise<Params> }) {
   const apps = await listApplications();
   const selected = ALL_DATES.find((d) => d.id === params.date);
   const status = ["pending", "accepted", "rejected"].includes(params.status ?? "") ? params.status! : "";
+  const category = (MARKET_CATEGORIES as readonly string[]).includes(params.category ?? "") ? params.category! : "";
   const back = new URLSearchParams(
-    Object.entries({ date: selected?.id, status }).filter((e): e is [string, string] => !!e[1]),
+    Object.entries({ date: selected?.id, status, category }).filter((e): e is [string, string] => !!e[1]),
   ).toString();
-  // Date tabs keep the chosen status.
+  // Date tabs keep the chosen status and category.
   const tabHref = (date?: string) => {
-    const qs = new URLSearchParams(Object.entries({ date, status }).filter((e): e is [string, string] => !!e[1]));
+    const qs = new URLSearchParams(Object.entries({ date, status, category }).filter((e): e is [string, string] => !!e[1]));
     return qs.size ? `/admin/requests?${qs}` : "/admin/requests";
   };
   const tab = "rounded-full px-4 py-1.5 text-sm font-medium";
@@ -78,14 +103,20 @@ async function Requests({ searchParams }: { searchParams: Promise<Params> }) {
           ))}
         </nav>
         <div className="flex flex-wrap items-center gap-4">
-          <StatusFilter value={status} />
+          <ParamSelect param="status" label="Show" value={status} options={STATUS_OPTIONS} />
+          <ParamSelect
+            param="category"
+            label="Category"
+            value={category}
+            options={CATEGORY_OPTIONS}
+          />
           <ExpandAll />
         </div>
       </div>
       <div className="mt-6 space-y-8">
         {(selected ? [selected] : ALL_DATES).map((d) => {
           const vendors = apps
-            .filter((a) => choiceRank(a, d.id) >= 0 && (!status || a.status === status))
+            .filter((a) => choiceRank(a, d.id) >= 0 && (!status || a.status === status) && (!category || marketCategoriesOf(a).includes(category)))
             .sort((x, y) => choiceRank(x, d.id) - choiceRank(y, d.id) || x.businessName.localeCompare(y.businessName));
           const firsts = vendors.filter((a) => choiceRank(a, d.id) === 0).length;
           return (
@@ -94,11 +125,11 @@ async function Requests({ searchParams }: { searchParams: Promise<Params> }) {
                 {d.label}{" "}
                 <span className="text-base text-muted">
                   · {vendors.length} {status ? STATUS_LABELS[status as StoredApplication["status"]].toLowerCase() : "requested"} ·{" "}
-                  {firsts} as 1st choice
+                  {firsts} as 1st choice{category && ` · ${category}`}
                 </span>
               </h2>
               {vendors.length === 0 ? (
-                <p className="mt-4 text-sm text-muted">{status ? "No vendors with this status for this date." : "No applicants picked this date yet."}</p>
+                <p className="mt-4 text-sm text-muted">{status || category ? "No vendors match these filters for this date." : "No applicants picked this date yet."}</p>
               ) : (
                 <ul className="mt-4 space-y-3">
                   {vendors.map((a) => {
