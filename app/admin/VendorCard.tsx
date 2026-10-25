@@ -2,7 +2,8 @@ import { dateLabel, events, getEvent } from "@/lib/events";
 import { isFoodVendor, UPLOAD_FIELDS } from "@/lib/schema";
 import { MARKET_CATEGORIES, STATUS_CHOICES, STATUS_LABELS } from "@/lib/selection";
 import type { StoredApplication } from "@/lib/store";
-import { saveSelectionAction, toggleStarAction } from "./actions";
+import { deleteApplicationAction, saveSelectionAction, toggleStarAction } from "./actions";
+import { DeleteVendorButton } from "./DeleteVendorButton";
 
 // An expandable applicant card with the status / dates / category form, shared by /admin and /admin/requests.
 
@@ -184,6 +185,16 @@ export function VendorCard({ app: a, back, returnTo, anchor, open, badge, forDat
             />
           )}
         </dl>
+        <form
+          action={deleteApplicationAction}
+          className="flex flex-wrap items-center justify-end gap-3 border-t border-line px-4 py-3"
+        >
+          <input type="hidden" name="id" value={a.id} />
+          <input type="hidden" name="back" value={back} />
+          <input type="hidden" name="returnTo" value={returnTo} />
+          <span className="text-xs text-muted">Removes this application and its files permanently.</span>
+          <DeleteVendorButton name={a.businessName} />
+        </form>
       </details>
     </li>
   );
@@ -205,6 +216,14 @@ export function SavedNotice({ saved }: { saved?: string }) {
       <p className="mt-6 rounded-lg border border-pink bg-pink/10 px-4 py-3 text-sm text-cream">
         Status saved, but market dates and category were not: run supabase/add-vendor-selection.sql in the Supabase SQL
         Editor first, then save again.
+      </p>
+    );
+  }
+  if (saved === "deleted") return <p className="mt-6 rounded-lg bg-teal/15 px-4 py-3 text-sm text-cream">Vendor deleted.</p>;
+  if (saved === "delete-missing") {
+    return (
+      <p className="mt-6 rounded-lg border border-pink bg-pink/10 px-4 py-3 text-sm text-cream">
+        That vendor was already deleted.
       </p>
     );
   }

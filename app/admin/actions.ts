@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { isAdminAuthorization } from "@/lib/admin-auth";
 import { getEvent } from "@/lib/events";
 import { MARKET_CATEGORIES, STATUS_LABELS } from "@/lib/selection";
-import { listApplications, setStarred, updateSelection, type StoredApplication } from "@/lib/store";
+import { deleteApplication, listApplications, setStarred, updateSelection, type StoredApplication } from "@/lib/store";
 
 export async function saveSelectionAction(form: FormData) {
   if (!isAdminAuthorization((await headers()).get("authorization"))) throw new Error("Not authorized");
@@ -45,4 +45,15 @@ export async function toggleStarAction(form: FormData) {
   const formAnchor = String(form.get("anchor") ?? "");
   const anchor = /^[\w-]+$/.test(formAnchor) ? formAnchor : `app-${id}`;
   redirect(`${returnTo}?${back}#${anchor}`);
+}
+
+export async function deleteApplicationAction(form: FormData) {
+  if (!isAdminAuthorization((await headers()).get("authorization"))) throw new Error("Not authorized");
+
+  const deleted = await deleteApplication(String(form.get("id") ?? ""));
+
+  const back = new URLSearchParams(String(form.get("back") ?? ""));
+  back.set("saved", deleted ? "deleted" : "delete-missing");
+  const returnTo = form.get("returnTo") === "/admin/requests" ? "/admin/requests" : "/admin";
+  redirect(`${returnTo}?${back}`);
 }

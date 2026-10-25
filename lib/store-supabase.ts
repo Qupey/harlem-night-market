@@ -311,4 +311,28 @@ async function setStarred(applicationId: string, starred: boolean): Promise<Sele
   throw new Error(`Saving vendor star failed: ${error.message}`);
 }
 
-export const supabaseStore: ApplicationStore = { saveApplication, listApplications, readUpload, updateSelection, setStarred };
+async function deleteApplication(applicationId: string): Promise<boolean> {
+  const { data: docs } = await db().from("uploaded_documents").select("file_path").eq("application_id", applicationId);
+  // Child rows (dates, food details, menu, documents) go with it via "on delete cascade".
+  const { data, error } = await db().from("vendor_applications").delete().eq("id", applicationId).select("id");
+  if (error) throw new Error(`Deleting application failed: ${error.message}`);
+  // Everything under the vendor's folder, plus any listed path outside it.
+  const { data: listed } = await db().storage.from(BUCKET).list(applicationId, { limit: 1000 });
+  const paths = [
+    ...new Set([
+      ...(listed ?? []).map((f) => `${applicationId}/${f.name}`),
+      ...(docs ?? []).map((d) => d.file_path as string),
+    ]),
+  ];
+  if (paths.length > 0) await db().storage.from(BUCKET).remove(paths);
+  return data.length > 0;
+}
+
+export const supabaseStore: ApplicationStore = {
+  saveApplication,
+  listApplications,
+  readUpload,
+  updateSelection,
+  setStarred,
+  deleteApplication,
+};

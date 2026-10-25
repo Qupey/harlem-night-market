@@ -41,8 +41,11 @@ export type ApplicationStore = {
   updateSelection(applicationId: string, selection: Selection): Promise<SelectionResult>;
   // columnsMissing: supabase/add-vendor-star.sql hasn't been run yet, so nothing was saved.
   setStarred(applicationId: string, starred: boolean): Promise<SelectionResult>;
+  // Removes the application, its dates/menu/document rows and its uploaded files for good.
+  deleteApplication(applicationId: string): Promise<boolean>;
 };
 
 const store: ApplicationStore = supabaseConfigured() ? supabaseStore : localStore;
 
-export const { saveApplication, listApplications, readUpload, updateSelection, setStarred } = store;
+export const { saveApplication, listApplications, readUpload, updateSelection, setStarred, deleteApplication } =
+  store;

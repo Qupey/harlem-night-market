@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { ApplicationData } from "./schema";
 import type { ApplicationStore, Selection, SelectionResult, StoredApplication, StoredFile, Upload } from "./store";
@@ -106,4 +106,26 @@ async function setStarred(applicationId: string, starred: boolean): Promise<Sele
   return updateFields(applicationId, { starred });
 }
 
-export const localStore: ApplicationStore = { saveApplication, listApplications, readUpload, updateSelection, setStarred };
+async function deleteApplication(applicationId: string): Promise<boolean> {
+  let found = false;
+  const job = writeQueue.then(async () => {
+    const apps = await readAll();
+    const rest = apps.filter((a) => a.id !== applicationId);
+    if (rest.length === apps.length) return;
+    found = true;
+    await writeAll(rest);
+    await rm(path.join(UPLOAD_DIR, safeName(applicationId)), { recursive: true, force: true });
+  });
+  writeQueue = job.catch(() => {});
+  await job;
+  return found;
+}
+
+export const localStore: ApplicationStore = {
+  saveApplication,
+  listApplications,
+  readUpload,
+  updateSelection,
+  setStarred,
+  deleteApplication,
+};
