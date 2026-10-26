@@ -5,6 +5,7 @@ import { events } from "@/lib/events";
 import { MARKET_CATEGORIES, STATUS_LABELS } from "@/lib/selection";
 import { listApplications, type StoredApplication } from "@/lib/store";
 import { ExpandAll } from "../ExpandAll";
+import { ScrollToCard } from "../ScrollToCard";
 import { SavedNotice, VendorCard } from "../VendorCard";
 import { ParamSelect } from "./ParamSelect";
 
@@ -86,6 +87,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Params> }) {
   return (
     <>
       <SavedNotice saved={params.saved} />
+      <ScrollToCard />
       <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
         <nav className="flex flex-wrap gap-2" aria-label="Market date">
           <Link href={tabHref()} className={tabClass(!selected)} aria-current={!selected ? "page" : undefined}>

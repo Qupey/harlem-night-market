@@ -4,6 +4,7 @@ import { events } from "@/lib/events";
 import { MARKET_CATEGORIES, STATUS_LABELS } from "@/lib/selection";
 import { listApplications, type StoredApplication } from "@/lib/store";
 import { ExpandAll } from "./ExpandAll";
+import { ScrollToCard } from "./ScrollToCard";
 import { SavedNotice, VendorCard } from "./VendorCard";
 
 type Filters = {
@@ -81,6 +82,7 @@ async function ApplicationList({ searchParams }: { searchParams: Promise<Filters
   return (
     <>
       <SavedNotice saved={filters.saved} />
+      <ScrollToCard />
       <AcceptedCounts apps={all} />
       <FilterBar filters={filters} />
       <div className="mt-6 flex items-center justify-between gap-4">
