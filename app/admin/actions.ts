@@ -99,6 +99,16 @@ export async function sendInvitesAction(form: FormData) {
   backTo(form, `invites-${sent}-${failed}-${skipped}`, ids.size === 1 ? [...ids][0] : undefined);
 }
 
+// Makes the vendor's /pay link without emailing it (to text it to them, or to test a payment).
+export async function createPayLinkAction(form: FormData) {
+  await requireAdmin();
+  const a = await findApp(form);
+  if (!canBeInvited(a)) backTo(form, "email-skipped", a.id);
+  if (a.inviteToken) backTo(form, "link-ready", a.id);
+  const saved = await updatePayment(a.id, { inviteToken: newInviteToken() });
+  backTo(form, saved.columnsMissing ? "payments-missing" : "link-ready", a.id);
+}
+
 export async function sendReminderAction(form: FormData) {
   await requireAdmin();
   const a = await findApp(form);

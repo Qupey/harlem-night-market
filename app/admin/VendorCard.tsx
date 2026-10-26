@@ -232,6 +232,7 @@ export function SavedNotice({ saved }: { saved?: string }) {
     "email-failed": ["The email could not be sent. Check RESEND_API_KEY and the Resend dashboard.", false],
     "email-skipped": ["Nothing sent: this vendor isn't in a state that email applies to.", false],
     paid: ["Marked as paid.", true],
+    "link-ready": ["Payment link ready: it's in the vendor's card under Vendor fee.", true],
     unpaid: ["Payment removed; the vendor is unpaid again.", true],
     "payments-missing": ["Not saved: run supabase/add-payments.sql in the Supabase SQL Editor first.", false],
   };

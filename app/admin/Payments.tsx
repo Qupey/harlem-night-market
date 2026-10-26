@@ -12,6 +12,7 @@ import {
 } from "@/lib/payments";
 import type { StoredApplication } from "@/lib/store";
 import {
+  createPayLinkAction,
   markPaidAction,
   markUnpaidAction,
   sendDeclineEmailAction,
@@ -147,6 +148,14 @@ export function PaymentPanel(props: FormProps) {
             <Hidden {...props} />
             <button type="submit" className="btn-primary px-4 py-1.5 text-sm disabled:opacity-40" disabled={!email} title={noEmail}>
               Send invite
+            </button>
+          </form>
+        )}
+        {canBeInvited(a) && !a.inviteToken && (
+          <form action={createPayLinkAction}>
+            <Hidden {...props} />
+            <button type="submit" className={btn} title="Makes the payment link without sending an email">
+              Create payment link
             </button>
           </form>
         )}
