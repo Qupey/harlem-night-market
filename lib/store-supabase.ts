@@ -3,7 +3,15 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { isFoodVendor, type ApplicationData, type UploadField } from "./schema";
-import type { ApplicationStore, Selection, SelectionResult, StoredApplication, StoredFile, Upload } from "./store";
+import type {
+  ApplicationStore,
+  PaymentFields,
+  Selection,
+  SelectionResult,
+  StoredApplication,
+  StoredFile,
+  Upload,
+} from "./store";
 
 // Supabase storage. Tables and the private "vendor-documents" bucket are created
 // by supabase/schema.sql. The secret key stays on the server; Row Level Security
@@ -159,6 +167,16 @@ type Row = {
   assigned_dates?: string[]; // added with add-vendor-selection.sql; missing until it's run
   market_category?: string | null;
   starred?: boolean; // added with add-vendor-star.sql
+  // added with add-payments.sql
+  invite_token?: string | null;
+  invited_at?: string | null;
+  reminder_sent_at?: string | null;
+  paid?: boolean;
+  amount_paid_cents?: number | null;
+  paid_at?: string | null;
+  payment_id?: string | null;
+  payment_method?: string | null;
+  decline_emailed_at?: string | null;
   submitted_at: string;
   vendor_date_preferences: { event_date: string; rank: number }[];
   // One-to-one, so PostgREST returns an object (or null); accept an array too.
@@ -208,6 +226,15 @@ function toStored(r: Row): StoredApplication {
     assignedDates: r.assigned_dates ?? [],
     marketCategory: r.market_category ?? "",
     starred: r.starred ?? false,
+    inviteToken: r.invite_token ?? null,
+    invitedAt: r.invited_at ?? null,
+    reminderSentAt: r.reminder_sent_at ?? null,
+    paid: r.paid ?? false,
+    amountPaidCents: r.amount_paid_cents ?? null,
+    paidAt: r.paid_at ?? null,
+    paymentId: r.payment_id ?? null,
+    paymentMethod: r.payment_method ?? null,
+    declineEmailedAt: r.decline_emailed_at ?? null,
     submittedAt: r.submitted_at,
     contactName: r.contact_name,
     businessName: r.business_name,
@@ -328,6 +355,27 @@ async function deleteApplication(applicationId: string): Promise<boolean> {
   return data.length > 0;
 }
 
+const PAYMENT_COLUMNS: Record<keyof PaymentFields, string> = {
+  inviteToken: "invite_token",
+  invitedAt: "invited_at",
+  reminderSentAt: "reminder_sent_at",
+  paid: "paid",
+  amountPaidCents: "amount_paid_cents",
+  paidAt: "paid_at",
+  paymentId: "payment_id",
+  paymentMethod: "payment_method",
+  declineEmailedAt: "decline_emailed_at",
+};
+
+async function updatePayment(applicationId: string, fields: Partial<PaymentFields>): Promise<SelectionResult> {
+  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  for (const [k, v] of Object.entries(fields)) update[PAYMENT_COLUMNS[k as keyof PaymentFields]] = v;
+  const { data, error } = await db().from("vendor_applications").update(update).eq("id", applicationId).select("id");
+  if (!error) return { ok: data.length > 0 };
+  if (Object.values(PAYMENT_COLUMNS).some((c) => error.message.includes(c))) return { ok: false, columnsMissing: true };
+  throw new Error(`Saving vendor payment failed: ${error.message}`);
+}
+
 export const supabaseStore: ApplicationStore = {
   saveApplication,
   listApplications,
@@ -335,4 +383,5 @@ export const supabaseStore: ApplicationStore = {
   updateSelection,
   setStarred,
   deleteApplication,
+  updatePayment,
 };

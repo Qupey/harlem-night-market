@@ -24,6 +24,19 @@ export type StoredApplication = ApplicationData & {
   assignedDates?: string[]; // market dates this vendor is booked for (event date ids)
   marketCategory?: string; // one of MARKET_CATEGORIES
   starred?: boolean; // organizers like this vendor but haven't placed them yet
+} & Partial<PaymentFields>;
+
+// Vendor fee tracking, added with supabase/add-payments.sql.
+export type PaymentFields = {
+  inviteToken: string | null; // secret part of the vendor's /pay/<token> link
+  invitedAt: string | null;
+  reminderSentAt: string | null;
+  paid: boolean;
+  amountPaidCents: number | null;
+  paidAt: string | null;
+  paymentId: string | null; // Stripe payment intent / checkout session id, or a note for manual payments
+  paymentMethod: string | null; // "stripe", "cash", "zelle", "other"
+  declineEmailedAt: string | null;
 };
 
 export type Selection = Pick<StoredApplication, "status"> & { assignedDates: string[]; marketCategory: string };
@@ -43,9 +56,11 @@ export type ApplicationStore = {
   setStarred(applicationId: string, starred: boolean): Promise<SelectionResult>;
   // Removes the application, its dates/menu/document rows and its uploaded files for good.
   deleteApplication(applicationId: string): Promise<boolean>;
+  // columnsMissing: supabase/add-payments.sql hasn't been run yet, so nothing was saved.
+  updatePayment(applicationId: string, fields: Partial<PaymentFields>): Promise<SelectionResult>;
 };
 
 const store: ApplicationStore = supabaseConfigured() ? supabaseStore : localStore;
 
-export const { saveApplication, listApplications, readUpload, updateSelection, setStarred, deleteApplication } =
+export const { saveApplication, listApplications, readUpload, updateSelection, setStarred, deleteApplication, updatePayment } =
   store;

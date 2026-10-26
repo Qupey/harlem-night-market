@@ -128,4 +128,5 @@ export const localStore: ApplicationStore = {
   updateSelection,
   setStarred,
   deleteApplication,
+  updatePayment: updateFields,
 };

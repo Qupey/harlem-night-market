@@ -4,6 +4,7 @@ import { events } from "@/lib/events";
 import { MARKET_CATEGORIES, STATUS_LABELS } from "@/lib/selection";
 import { listApplications, type StoredApplication } from "@/lib/store";
 import { ExpandAll } from "./ExpandAll";
+import { BulkInviteBar, FeesTile, matchesPaymentFilter, PAYMENT_FILTERS, PaymentsSetupNotice } from "./Payments";
 import { ScrollToCard } from "./ScrollToCard";
 import { SavedNotice, VendorCard } from "./VendorCard";
 
@@ -11,6 +12,7 @@ type Filters = {
   status?: string;
   date?: string;
   category?: string;
+  payment?: string;
   saved?: string;
   open?: string;
 };
@@ -69,13 +71,15 @@ async function ApplicationList({ searchParams }: { searchParams: Promise<Filters
     (a) =>
       (!filters.status || a.status === filters.status) &&
       (!filters.date || (a.assignedDates ?? []).includes(filters.date)) &&
-      (!filters.category || a.marketCategory === filters.category),
+      (!filters.category || a.marketCategory === filters.category) &&
+      matchesPaymentFilter(a, filters.payment ?? ""),
   );
   const back = new URLSearchParams(
     Object.entries({
       status: filters.status,
       date: filters.date,
       category: filters.category,
+      payment: filters.payment,
     }).filter((e): e is [string, string] => !!e[1]),
   ).toString();
 
@@ -83,8 +87,10 @@ async function ApplicationList({ searchParams }: { searchParams: Promise<Filters
     <>
       <SavedNotice saved={filters.saved} />
       <ScrollToCard />
+      <PaymentsSetupNotice />
       <AcceptedCounts apps={all} />
       <FilterBar filters={filters} />
+      <BulkInviteBar back={back} returnTo="/admin" />
       <div className="mt-6 flex items-center justify-between gap-4">
         <p className="text-sm font-medium text-muted">
           {apps.length === all.length ? all.length : `${apps.length} of ${all.length}`} application
@@ -115,7 +121,7 @@ function AcceptedCounts({ apps }: { apps: StoredApplication[] }) {
   const tile = "rounded-xl border border-line bg-panel px-4 py-3";
 
   return (
-    <section className="mt-8 grid gap-3 sm:grid-cols-[auto_1fr_1fr]">
+    <section className="mt-8 grid gap-3 sm:grid-cols-[auto_1fr_1fr_auto]">
       <div className={`${tile} text-center`}>
         <p className="text-xs font-medium uppercase tracking-wide text-muted">Accepted vendors</p>
         <p className="display mt-1 text-4xl text-orange">{accepted.length}</p>
@@ -142,6 +148,7 @@ function AcceptedCounts({ apps }: { apps: StoredApplication[] }) {
           ))}
         </ul>
       </div>
+      <FeesTile apps={apps} />
     </section>
   );
 }
@@ -182,10 +189,20 @@ function FilterBar({ filters }: { filters: Filters }) {
           ))}
         </select>
       </label>
+      <label className="block">
+        <span className="field-label">Payment</span>
+        <select name="payment" defaultValue={filters.payment ?? ""} className="field-input">
+          {PAYMENT_FILTERS.map(([v, l]) => (
+            <option key={v} value={v}>
+              {l}
+            </option>
+          ))}
+        </select>
+      </label>
       <button type="submit" className="btn-secondary">
         Filter
       </button>
-      {(filters.status || filters.date || filters.category) && (
+      {(filters.status || filters.date || filters.category || filters.payment) && (
         <a href="/admin" className="pb-2 text-sm text-muted underline">
           Clear
         </a>

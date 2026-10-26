@@ -4,6 +4,7 @@ import { MARKET_CATEGORIES, STATUS_CHOICES, STATUS_LABELS } from "@/lib/selectio
 import type { StoredApplication } from "@/lib/store";
 import { deleteApplicationAction, saveSelectionAction } from "./actions";
 import { DeleteVendorButton } from "./DeleteVendorButton";
+import { InviteCheckbox, PaymentBadge, PaymentPanel } from "./Payments";
 import { StarButton } from "./StarButton";
 
 // An expandable applicant card with the status / dates / category form, shared by /admin and /admin/requests.
@@ -33,9 +34,9 @@ export function VendorCard({ app: a, back, returnTo, anchor, open, badge, forDat
       : a.status === "rejected"
         ? "border-line bg-panel opacity-45"
         : "border-line bg-panel";
-  // On the teal row, every piece of text, badge and the arrow turns navy so it stays readable.
+  // On the teal row, text and badges turn navy so they stay readable (payment badges keep their own colors).
   const summaryTone = booked
-    ? "bg-teal group-open:rounded-b-none [&_*]:!border-navy/50 [&_*]:!text-navy [&_.rounded-full]:!bg-navy/10"
+    ? "bg-teal group-open:rounded-b-none [&_*:not(.pay-badge)]:!border-navy/50 [&_*:not(.pay-badge)]:!text-navy [&_.rounded-full]:!bg-navy/10"
     : "hover:bg-navy-deep/30";
   const event = getEvent(a.eventSlug);
   const prefs = [a.firstChoice, a.secondChoice, a.thirdChoice].filter(Boolean).map((d) => dateLabel(event, d));
@@ -45,6 +46,7 @@ export function VendorCard({ app: a, back, returnTo, anchor, open, badge, forDat
         <summary
           className={`flex cursor-pointer list-none items-start gap-3 rounded-[10px] px-4 py-3 [&::-webkit-details-marker]:hidden ${summaryTone}`}
         >
+          <InviteCheckbox app={a} />
           <StarButton key={String(!!a.starred)} id={a.id} name={a.businessName} starred={!!a.starred} />
           <span className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <span>
@@ -58,6 +60,7 @@ export function VendorCard({ app: a, back, returnTo, anchor, open, badge, forDat
               {badge}
               <StatusBadge status={a.status} />
               <AssignmentChips app={a} />
+              <PaymentBadge app={a} />
             </span>
             <span className="text-sm text-muted">
               {a.categories.join(", ")} ·{" "}
@@ -82,6 +85,7 @@ export function VendorCard({ app: a, back, returnTo, anchor, open, badge, forDat
           </span>
         </summary>
         <SelectionForm app={a} back={back} returnTo={returnTo} anchor={anchor} />
+        <PaymentPanel app={a} back={back} returnTo={returnTo} anchor={anchor} />
         <dl className="grid gap-x-6 gap-y-2 border-t border-line px-4 py-4 text-sm sm:grid-cols-2">
           <Row
             label="Email"
@@ -206,6 +210,36 @@ export function SavedNotice({ saved }: { saved?: string }) {
     return (
       <p className="mt-6 rounded-lg border border-pink bg-pink/10 px-4 py-3 text-sm text-cream">
         That vendor was already deleted.
+      </p>
+    );
+  }
+  const invites = saved?.match(/^invites-(\d+)-(\d+)-(\d+)$/);
+  if (invites) {
+    const [sent, failed, skipped] = invites.slice(1).map(Number);
+    const bad = failed > 0 || (sent === 0 && skipped > 0);
+    return (
+      <p className={`mt-6 rounded-lg px-4 py-3 text-sm text-cream ${bad ? "border border-pink bg-pink/10" : "bg-teal/15"}`}>
+        {sent === 0 && failed === 0 && skipped === 0 && "No vendors were selected."}
+        {sent > 0 && `Invite sent to ${sent} vendor${sent === 1 ? "" : "s"}. `}
+        {failed > 0 && `${failed} invite${failed === 1 ? "" : "s"} could not be emailed (check the email settings). `}
+        {skipped > 0 &&
+          `${skipped} skipped: only accepted vendors with market dates who haven't paid can be invited.`}
+      </p>
+    );
+  }
+  const notes: Record<string, [string, boolean]> = {
+    "email-sent": ["Email sent.", true],
+    "email-failed": ["The email could not be sent. Check RESEND_API_KEY and the Resend dashboard.", false],
+    "email-skipped": ["Nothing sent: this vendor isn't in a state that email applies to.", false],
+    paid: ["Marked as paid.", true],
+    unpaid: ["Payment removed; the vendor is unpaid again.", true],
+    "payments-missing": ["Not saved: run supabase/add-payments.sql in the Supabase SQL Editor first.", false],
+  };
+  if (saved && notes[saved]) {
+    const [text, ok] = notes[saved];
+    return (
+      <p className={`mt-6 rounded-lg px-4 py-3 text-sm text-cream ${ok ? "bg-teal/15" : "border border-pink bg-pink/10"}`}>
+        {text}
       </p>
     );
   }

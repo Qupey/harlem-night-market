@@ -44,6 +44,16 @@ alter table public.vendor_applications add column if not exists assigned_dates d
 alter table public.vendor_applications add column if not exists market_category text;
 -- Star in /admin: a vendor organizers like but haven't placed yet.
 alter table public.vendor_applications add column if not exists starred boolean not null default false;
+-- Vendor fees (see add-payments.sql).
+alter table public.vendor_applications add column if not exists invite_token text unique;
+alter table public.vendor_applications add column if not exists invited_at timestamptz;
+alter table public.vendor_applications add column if not exists reminder_sent_at timestamptz;
+alter table public.vendor_applications add column if not exists paid boolean not null default false;
+alter table public.vendor_applications add column if not exists amount_paid_cents integer;
+alter table public.vendor_applications add column if not exists paid_at timestamptz;
+alter table public.vendor_applications add column if not exists payment_id text;
+alter table public.vendor_applications add column if not exists payment_method text;
+alter table public.vendor_applications add column if not exists decline_emailed_at timestamptz;
 
 create table if not exists public.vendor_date_preferences (
   id uuid primary key default gen_random_uuid(),

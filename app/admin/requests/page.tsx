@@ -5,13 +5,14 @@ import { events } from "@/lib/events";
 import { MARKET_CATEGORIES, STATUS_LABELS } from "@/lib/selection";
 import { listApplications, type StoredApplication } from "@/lib/store";
 import { ExpandAll } from "../ExpandAll";
+import { BulkInviteBar, matchesPaymentFilter, PAYMENT_FILTERS, PaymentsSetupNotice } from "../Payments";
 import { ScrollToCard } from "../ScrollToCard";
 import { SavedNotice, VendorCard } from "../VendorCard";
 import { ParamSelect } from "./ParamSelect";
 
 export const metadata = { title: "Requested dates | Harlem Night Market admin" };
 
-type Params = { date?: string; status?: string; category?: string; saved?: string; open?: string };
+type Params = { date?: string; status?: string; category?: string; payment?: string; saved?: string; open?: string };
 
 const STATUS_OPTIONS = [
   ["", "All vendors"],
@@ -72,12 +73,13 @@ async function Requests({ searchParams }: { searchParams: Promise<Params> }) {
   const selected = ALL_DATES.find((d) => d.id === params.date);
   const status = ["pending", "accepted", "rejected"].includes(params.status ?? "") ? params.status! : "";
   const category = (MARKET_CATEGORIES as readonly string[]).includes(params.category ?? "") ? params.category! : "";
+  const payment = PAYMENT_FILTERS.some(([v]) => v && v === params.payment) ? params.payment! : "";
   const back = new URLSearchParams(
-    Object.entries({ date: selected?.id, status, category }).filter((e): e is [string, string] => !!e[1]),
+    Object.entries({ date: selected?.id, status, category, payment }).filter((e): e is [string, string] => !!e[1]),
   ).toString();
   // Date tabs keep the chosen status and category.
   const tabHref = (date?: string) => {
-    const qs = new URLSearchParams(Object.entries({ date, status, category }).filter((e): e is [string, string] => !!e[1]));
+    const qs = new URLSearchParams(Object.entries({ date, status, category, payment }).filter((e): e is [string, string] => !!e[1]));
     return qs.size ? `/admin/requests?${qs}` : "/admin/requests";
   };
   const tab = "rounded-full px-4 py-1.5 text-sm font-medium";
@@ -88,6 +90,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Params> }) {
     <>
       <SavedNotice saved={params.saved} />
       <ScrollToCard />
+      <PaymentsSetupNotice />
       <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
         <nav className="flex flex-wrap gap-2" aria-label="Market date">
           <Link href={tabHref()} className={tabClass(!selected)} aria-current={!selected ? "page" : undefined}>
@@ -112,13 +115,15 @@ async function Requests({ searchParams }: { searchParams: Promise<Params> }) {
             value={category}
             options={CATEGORY_OPTIONS}
           />
+          <ParamSelect param="payment" label="Payment" value={payment} options={PAYMENT_FILTERS} />
           <ExpandAll />
         </div>
       </div>
+      <BulkInviteBar back={back} returnTo="/admin/requests" />
       <div className="mt-6 space-y-8">
         {(selected ? [selected] : ALL_DATES).map((d) => {
           const vendors = apps
-            .filter((a) => choiceRank(a, d.id) >= 0 && (!status || a.status === status) && (!category || marketCategoriesOf(a).includes(category)))
+            .filter((a) => choiceRank(a, d.id) >= 0 && (!status || a.status === status) && (!category || marketCategoriesOf(a).includes(category)) && matchesPaymentFilter(a, payment))
             .sort((x, y) => choiceRank(x, d.id) - choiceRank(y, d.id) || x.businessName.localeCompare(y.businessName));
           const firsts = vendors.filter((a) => choiceRank(a, d.id) === 0).length;
           return (
@@ -131,7 +136,7 @@ async function Requests({ searchParams }: { searchParams: Promise<Params> }) {
                 </span>
               </h2>
               {vendors.length === 0 ? (
-                <p className="mt-4 text-sm text-muted">{status || category ? "No vendors match these filters for this date." : "No applicants picked this date yet."}</p>
+                <p className="mt-4 text-sm text-muted">{status || category || payment ? "No vendors match these filters for this date." : "No applicants picked this date yet."}</p>
               ) : (
                 <ul className="mt-4 space-y-3">
                   {vendors.map((a) => {

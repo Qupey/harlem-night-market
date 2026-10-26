@@ -2,6 +2,7 @@ import "server-only";
 import ExcelJS from "exceljs";
 import { dateLabel, getEvent } from "./events";
 import { AGREEMENTS, isFoodVendor, LICENSE_OPTIONS, UPLOAD_FIELDS } from "./schema";
+import { amountDueCents, dollars, PAYMENT_STATE_LABELS, paymentState } from "./payments";
 import { MARKET_CATEGORIES, STATUS_LABELS } from "./selection";
 import type { StoredApplication } from "./store";
 
@@ -28,6 +29,25 @@ const COLUMNS: Column[] = [
     value: (a) => (a.assignedDates ?? []).map((d) => getEvent(a.eventSlug)?.dates.find((x) => x.id === d)?.short ?? d).join(", "),
   },
   { header: "Market Category", width: 16, value: (a) => a.marketCategory ?? "" },
+  { header: "Payment", width: 16, value: (a) => (a.status === "accepted" || a.paid ? PAYMENT_STATE_LABELS[paymentState(a)] : "") },
+  {
+    header: "Fee Due",
+    width: 10,
+    value: (a) => (a.status === "accepted" && (a.assignedDates ?? []).length > 0 ? dollars(amountDueCents(a)) : ""),
+  },
+  { header: "Amount Paid", width: 12, value: (a) => (a.paid && a.amountPaidCents != null ? dollars(a.amountPaidCents) : "") },
+  {
+    header: "Paid On",
+    width: 14,
+    value: (a) => (a.paidAt ? new Date(a.paidAt).toLocaleDateString("en-US", { timeZone: "America/New_York" }) : ""),
+  },
+  { header: "Payment Method", width: 14, value: (a) => a.paymentMethod ?? "" },
+  { header: "Payment ID", width: 30, value: (a) => a.paymentId ?? "" },
+  {
+    header: "Invite Sent",
+    width: 14,
+    value: (a) => (a.invitedAt ? new Date(a.invitedAt).toLocaleDateString("en-US", { timeZone: "America/New_York" }) : ""),
+  },
   { header: "Event", width: 22, value: (a) => getEvent(a.eventSlug)?.name ?? a.eventSlug },
   { header: "Business Name", width: 26, value: (a) => a.businessName },
   { header: "Contact Name", width: 22, value: (a) => a.contactName },
