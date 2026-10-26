@@ -39,6 +39,9 @@ export default function AdminPage({ searchParams }: PageProps<"/admin">) {
           <a href="/admin/faq" className="btn-secondary">
             Manage FAQ
           </a>
+          <a href="/api/admin/email-preview?type=invite" target="_blank" rel="noreferrer" className="btn-secondary">
+            Preview vendor emails
+          </a>
           <a href="/api/admin/export?format=xlsx" className="btn-primary px-5 py-2 text-sm">
             Download Excel (.xlsx)
           </a>
