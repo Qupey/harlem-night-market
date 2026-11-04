@@ -20,6 +20,9 @@ export default function MarketsPage() {
           <a href="/api/admin/market-export?format=xlsx" className="btn-primary px-5 py-2 text-sm">
             All markets (.xlsx)
           </a>
+          <Link href="/admin/board" className="btn-secondary">
+            Market board
+          </Link>
           <Link href="/admin" className="text-sm text-muted underline">
             ← Back to applications
           </Link>

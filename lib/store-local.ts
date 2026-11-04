@@ -11,6 +11,7 @@ import type { ApplicationStore, Selection, SelectionResult, StoredApplication, S
 const DATA_DIR = process.env.DATA_DIR ?? path.join(process.cwd(), "data");
 const DB_FILE = path.join(DATA_DIR, "applications.json");
 const UPLOAD_DIR = path.join(DATA_DIR, "uploads");
+const CAPACITY_FILE = path.join(DATA_DIR, "market-capacity.json");
 
 // Serialize writes so two submissions arriving together can't overwrite each other.
 let writeQueue: Promise<unknown> = Promise.resolve();
@@ -121,6 +122,30 @@ async function deleteApplication(applicationId: string): Promise<boolean> {
   return found;
 }
 
+async function getCapacities(): Promise<Record<string, number>> {
+  try {
+    return JSON.parse(await readFile(CAPACITY_FILE, "utf8")) as Record<string, number>;
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return {};
+    throw err;
+  }
+}
+
+async function setCapacity(dateId: string, capacity: number | null): Promise<SelectionResult> {
+  const job = writeQueue.then(async () => {
+    const all = await getCapacities();
+    if (capacity === null) delete all[dateId];
+    else all[dateId] = capacity;
+    await mkdir(DATA_DIR, { recursive: true });
+    const tmp = `${CAPACITY_FILE}.${process.pid}.tmp`;
+    await writeFile(tmp, JSON.stringify(all, null, 2));
+    await rename(tmp, CAPACITY_FILE);
+  });
+  writeQueue = job.catch(() => {});
+  await job;
+  return { ok: true };
+}
+
 export const localStore: ApplicationStore = {
   saveApplication,
   listApplications,
@@ -129,4 +154,6 @@ export const localStore: ApplicationStore = {
   setStarred,
   deleteApplication,
   updatePayment: updateFields,
+  getCapacities,
+  setCapacity,
 };

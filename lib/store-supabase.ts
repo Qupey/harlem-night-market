@@ -376,6 +376,31 @@ async function updatePayment(applicationId: string, fields: Partial<PaymentField
   throw new Error(`Saving vendor payment failed: ${error.message}`);
 }
 
+// Table added by supabase/add-market-capacity.sql; until then reads come back null and saves report columnsMissing.
+const capacityTableMissing = (error: { code?: string; message: string }) =>
+  error.code === "42P01" || error.code === "PGRST205" || /market_capacity/.test(error.message);
+
+async function getCapacities(): Promise<Record<string, number> | null> {
+  const { data, error } = await db().from("market_capacity").select("event_date, capacity");
+  if (error) {
+    if (capacityTableMissing(error)) return null;
+    throw new Error(`Loading market capacity failed: ${error.message}`);
+  }
+  return Object.fromEntries((data as { event_date: string; capacity: number }[]).map((r) => [r.event_date, r.capacity]));
+}
+
+async function setCapacity(dateId: string, capacity: number | null): Promise<SelectionResult> {
+  const { error } =
+    capacity === null
+      ? await db().from("market_capacity").delete().eq("event_date", dateId)
+      : await db()
+          .from("market_capacity")
+          .upsert({ event_date: dateId, capacity, updated_at: new Date().toISOString() });
+  if (!error) return { ok: true };
+  if (capacityTableMissing(error)) return { ok: false, columnsMissing: true };
+  throw new Error(`Saving market capacity failed: ${error.message}`);
+}
+
 export const supabaseStore: ApplicationStore = {
   saveApplication,
   listApplications,
@@ -384,4 +409,6 @@ export const supabaseStore: ApplicationStore = {
   setStarred,
   deleteApplication,
   updatePayment,
+  getCapacities,
+  setCapacity,
 };

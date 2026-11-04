@@ -58,9 +58,23 @@ export type ApplicationStore = {
   deleteApplication(applicationId: string): Promise<boolean>;
   // columnsMissing: supabase/add-payments.sql hasn't been run yet, so nothing was saved.
   updatePayment(applicationId: string, fields: Partial<PaymentFields>): Promise<SelectionResult>;
+  // Vendor capacity per market date (date id -> number of vendors). Dates without a row have no limit.
+  // null: supabase/add-market-capacity.sql hasn't been run yet.
+  getCapacities(): Promise<Record<string, number> | null>;
+  // capacity null removes the limit. columnsMissing: the market_capacity table doesn't exist yet.
+  setCapacity(dateId: string, capacity: number | null): Promise<SelectionResult>;
 };
 
 const store: ApplicationStore = supabaseConfigured() ? supabaseStore : localStore;
 
-export const { saveApplication, listApplications, readUpload, updateSelection, setStarred, deleteApplication, updatePayment } =
-  store;
+export const {
+  saveApplication,
+  listApplications,
+  readUpload,
+  updateSelection,
+  setStarred,
+  deleteApplication,
+  updatePayment,
+  getCapacities,
+  setCapacity,
+} = store;
