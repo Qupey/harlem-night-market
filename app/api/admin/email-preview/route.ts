@@ -2,7 +2,7 @@ import { declineEmail, inviteEmail, receiptEmail, reminderEmail } from "@/lib/em
 import { amountDueCents } from "@/lib/payments";
 import type { StoredApplication } from "@/lib/store";
 
-// Shows what vendors receive: /api/admin/email-preview?type=invite|reminder|decline|receipt
+// Shows what vendors receive: /api/admin/email-preview?type=invite|invite-food|reminder|decline|receipt
 // Uses a made-up vendor, so nothing is sent. Protected by the admin password check in proxy.ts.
 const SAMPLE = {
   id: "preview",
@@ -19,7 +19,20 @@ const SAMPLE = {
   inviteToken: "sample-link-for-preview-only",
 } as unknown as StoredApplication;
 
-const TYPES = { invite: inviteEmail, reminder: reminderEmail, decline: declineEmail } as const;
+const FOOD_SAMPLE = {
+  ...SAMPLE,
+  businessName: "Sample Taco Co.",
+  categories: ["Hot Food"],
+  marketCategory: "Hot Food",
+  files: [{ field: "foodLicenseFile", fileName: "sample.pdf", originalName: "sample.pdf", size: 1, type: "application/pdf" }],
+} as unknown as StoredApplication;
+
+const TYPES = {
+  invite: inviteEmail,
+  "invite-food": () => inviteEmail(FOOD_SAMPLE),
+  reminder: reminderEmail,
+  decline: declineEmail,
+} as const;
 
 export async function GET(request: Request) {
   const type = new URL(request.url).searchParams.get("type") ?? "invite";
@@ -27,7 +40,7 @@ export async function GET(request: Request) {
     type === "receipt"
       ? receiptEmail(SAMPLE, amountDueCents(SAMPLE))
       : (TYPES[type as keyof typeof TYPES] ?? inviteEmail)(SAMPLE);
-  const nav = ["invite", "reminder", "decline", "receipt"]
+  const nav = ["invite", "invite-food", "reminder", "decline", "receipt"]
     .map((t) => (t === type ? `<strong>${t}</strong>` : `<a href="?type=${t}">${t}</a>`))
     .join(" · ");
   const page = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
