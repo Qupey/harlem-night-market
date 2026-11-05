@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { events } from "@/lib/events";
+import { dateLabel, events, getEvent } from "@/lib/events";
 import { HOT_FOOD_FEE_CENTS, PAYMENT_STATE_LABELS, paymentState, STANDARD_FEE_CENTS } from "@/lib/payments";
+import { isFoodVendor } from "@/lib/schema";
 import { getCapacities, listApplications } from "@/lib/store";
 import { Board, type BoardVendor } from "./Board";
 
@@ -55,6 +56,16 @@ async function BoardData() {
       assignedDates: a.assignedDates ?? [],
       eventDates: events.find((e) => e.slug === a.eventSlug)?.dates.map((d) => d.id) ?? [],
       amountPaidCents: a.paid ? (a.amountPaidCents ?? 0) : null,
+      preferredDates: [a.firstChoice, a.secondChoice, a.thirdChoice].map((d) => (d ? dateLabel(getEvent(a.eventSlug), d) : "")),
+      appliedCategories: [...a.categories.filter((c) => c !== "Other"), ...(a.otherCategory ? [a.otherCategory] : a.categories.includes("Other") ? ["Other"] : [])],
+      instagram: a.instagram ?? "",
+      website: a.website ?? "",
+      details: a.productDetails ?? "",
+      foodTypes: isFoodVendor(a.categories) ? [...a.foodTypes.filter((t) => t !== "Other"), ...(a.otherFoodType ? [a.otherFoodType] : [])] : [],
+      menuItems: isFoodVendor(a.categories) ? a.menuItems.map((m) => m.name) : [],
+      availabilityNotes: a.availabilityNotes ?? "",
+      electricityDetails: a.electricityDetails ?? "",
+      setupNotes: a.setupNotes ?? "",
     }));
 
   return (

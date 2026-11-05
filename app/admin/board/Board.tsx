@@ -18,6 +18,17 @@ export type BoardVendor = {
   assignedDates: string[];
   eventDates: string[]; // the dates this vendor's event runs on
   amountPaidCents: number | null; // paid vendors only
+  // From the application, shown in the edit panel. Email and phone stay off the board.
+  preferredDates: string[]; // 1st, 2nd and 3rd choice; "" when not picked
+  appliedCategories: string[]; // what the vendor picked when applying, not the market category
+  instagram: string;
+  website: string;
+  details: string;
+  foodTypes: string[];
+  menuItems: string[];
+  availabilityNotes: string;
+  electricityDetails: string;
+  setupNotes: string;
 };
 
 type MarketDate = { id: string; label: string; short: string };
@@ -413,6 +424,73 @@ function Card({
   );
 }
 
+// Instagram is free text on the form: "@name", "name" or a full link. Reduced to the handle; null if it isn't one.
+function instagramHandle(raw: string): string | null {
+  const handle = raw
+    .trim()
+    .replace(/^(https?:\/\/)?(www\.|m\.)?instagram\.com\//i, "")
+    .replace(/^@/, "")
+    .replace(/[/?#].*$/, "");
+  return /^[\w.]+$/.test(handle) ? handle : null;
+}
+
+const CHOICE_NAMES = ["1st", "2nd", "3rd"];
+
+function Info({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <dt className="text-xs font-bold uppercase tracking-wide text-muted">{label}</dt>
+      <dd className="mt-0.5 whitespace-pre-line break-words text-sm text-cream">{children}</dd>
+    </div>
+  );
+}
+
+function ApplicationInfo({ vendor: v }: { vendor: BoardVendor }) {
+  const instagram = v.instagram.trim();
+  const handle = instagramHandle(instagram);
+  const website = v.website.trim();
+  const choices = v.preferredDates.flatMap((d, i) => (d ? [`${CHOICE_NAMES[i]}: ${d}`] : []));
+  return (
+    <dl className="mt-3 space-y-3 rounded-lg border border-line bg-navy-deep/40 p-3">
+      {instagram && (
+        <Info label="Instagram">
+          {handle ? (
+            <a href={`https://instagram.com/${handle}`} target="_blank" rel="noopener noreferrer" className="underline">
+              @{handle}
+            </a>
+          ) : (
+            instagram
+          )}
+        </Info>
+      )}
+      {website && (
+        <Info label="Website">
+          {/^javascript:|^data:/i.test(website) ? (
+            website
+          ) : (
+            <a
+              href={/^https?:\/\//i.test(website) ? website : `https://${website}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline"
+            >
+              {website}
+            </a>
+          )}
+        </Info>
+      )}
+      {choices.length > 0 && <Info label="Preferred dates">{choices.join("\n")}</Info>}
+      {v.availabilityNotes && <Info label="Availability notes">{v.availabilityNotes}</Info>}
+      {v.appliedCategories.length > 0 && <Info label="Applied categories">{v.appliedCategories.join(", ")}</Info>}
+      {v.details && <Info label="What they sell">{v.details}</Info>}
+      {v.foodTypes.length > 0 && <Info label="Food types">{v.foodTypes.join(", ")}</Info>}
+      {v.menuItems.length > 0 && <Info label="Menu items">{v.menuItems.join(", ")}</Info>}
+      {v.needsElectricity && <Info label="Electricity">{v.electricityDetails ? `Yes · ${v.electricityDetails}` : "Yes"}</Info>}
+      {v.setupNotes && <Info label="Setup notes">{v.setupNotes}</Info>}
+    </dl>
+  );
+}
+
 function EditPanel({
   vendor,
   dates,
@@ -444,45 +522,48 @@ function EditPanel({
           e.preventDefault();
           onSave([...picked], category);
         }}
-        className="w-full max-w-sm rounded-2xl border border-line bg-panel p-5 shadow-2xl"
+        className="flex max-h-[85vh] w-full max-w-md flex-col rounded-2xl border border-line bg-panel p-5 shadow-2xl"
       >
         <h2 className="display text-2xl text-orange">{vendor.name}</h2>
-        <fieldset className="mt-4">
-          <legend className="text-xs font-bold uppercase tracking-wide text-muted">Market dates</legend>
-          <div className="mt-2 space-y-2">
-            {dates.map((d) => (
-              <label key={d.id} className="flex items-center gap-2 text-cream">
-                <input
-                  type="checkbox"
-                  checked={picked.has(d.id)}
-                  onChange={(e) => {
-                    const next = new Set(picked);
-                    if (e.target.checked) next.add(d.id);
-                    else next.delete(d.id);
-                    setPicked(next);
-                  }}
-                  className="h-4 w-4 accent-teal"
-                />
-                {d.label}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-        <label className="mt-4 block text-xs font-bold uppercase tracking-wide text-muted">
-          Category
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="mt-1 block w-full rounded-md border border-line bg-field px-2 py-2 text-sm normal-case tracking-normal text-cream"
-          >
-            <option value="">No category</option>
-            {MARKET_CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="-mx-1 mt-1 min-h-0 flex-1 overflow-y-auto px-1">
+          <ApplicationInfo vendor={vendor} />
+          <fieldset className="mt-4">
+            <legend className="text-xs font-bold uppercase tracking-wide text-muted">Market dates</legend>
+            <div className="mt-2 space-y-2">
+              {dates.map((d) => (
+                <label key={d.id} className="flex items-center gap-2 text-cream">
+                  <input
+                    type="checkbox"
+                    checked={picked.has(d.id)}
+                    onChange={(e) => {
+                      const next = new Set(picked);
+                      if (e.target.checked) next.add(d.id);
+                      else next.delete(d.id);
+                      setPicked(next);
+                    }}
+                    className="h-4 w-4 accent-teal"
+                  />
+                  {d.label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <label className="mt-4 block text-xs font-bold uppercase tracking-wide text-muted">
+            Category
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="mt-1 block w-full rounded-md border border-line bg-field px-2 py-2 text-sm normal-case tracking-normal text-cream"
+            >
+              <option value="">No category</option>
+              {MARKET_CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
         <div className="mt-5 flex items-center justify-between gap-3">
           <a href={`/admin#app-${vendor.id}`} className="text-sm text-muted underline">
             Full application
