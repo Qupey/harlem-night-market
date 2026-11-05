@@ -13,12 +13,17 @@ import {
 } from "./payments";
 import type { StoredApplication } from "./store";
 
-// Vendor emails, sent through Resend (https://resend.com) from info@harlemnightmarket.com. Replies go to Carey.
+// Vendor emails, sent through Resend (https://resend.com) from info@harlemnightmarket.com. Replies go to Carey and Tony.
 // Without RESEND_API_KEY nothing is sent and callers get { sent: false }.
 
 const FROM = process.env.EMAIL_FROM || "Harlem Night Market <info@harlemnightmarket.com>";
 
-export const REPLY_TO = process.env.REPLY_TO_EMAIL || "carey@uptowngrandcentral.org";
+// Everyone a vendor's reply goes to. The first address is the contact shown to vendors.
+export const REPLY_TO_ALL = (process.env.REPLY_TO_EMAIL || "carey@uptowngrandcentral.org,tony@tbo.media")
+  .split(",")
+  .map((address) => address.trim())
+  .filter(Boolean);
+export const REPLY_TO = REPLY_TO_ALL[0];
 
 export type EmailResult = { sent: true } | { sent: false; error: string };
 
@@ -30,7 +35,7 @@ export async function sendEmail(to: string, email: Email): Promise<EmailResult> 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: FROM, to: [to], reply_to: REPLY_TO, ...email }),
+    body: JSON.stringify({ from: FROM, to: [to], reply_to: REPLY_TO_ALL, ...email }),
   });
   if (res.ok) return { sent: true };
   const detail = await res.text().catch(() => "");
