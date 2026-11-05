@@ -1,4 +1,4 @@
-import { declineEmail, inviteEmail, receiptEmail, reminderEmail } from "@/lib/email";
+import { declineEmail, inviteEmail, receiptEmail, reminderEmail, REPLY_TO } from "@/lib/email";
 import { amountDueCents } from "@/lib/payments";
 import type { StoredApplication } from "@/lib/store";
 
@@ -51,6 +51,7 @@ Email preview (sample vendor, nothing is sent): ${nav.replace(/<a /g, '<a style=
 </div>
 <div style="max-width:640px;margin:16px auto;background:#fff;padding:24px;border-radius:8px">
 <p style="margin:0 0 4px;color:#666;font-size:13px">From: Harlem Night Market &lt;info@harlemnightmarket.com&gt;</p>
+<p style="margin:0 0 4px;color:#666;font-size:13px">Replies go to: ${REPLY_TO}</p>
 <p style="margin:0 0 20px;font-weight:bold">Subject: ${email.subject.replace(/</g, "&lt;")}</p>
 ${email.html}
 </div></body>`;

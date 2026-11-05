@@ -14,10 +14,12 @@ import {
 import { isFoodVendor } from "./schema";
 import type { StoredApplication } from "./store";
 
-// Vendor emails, sent through Resend (https://resend.com) from info@harlemnightmarket.com.
+// Vendor emails, sent through Resend (https://resend.com) from info@harlemnightmarket.com. Replies go to Carey.
 // Without RESEND_API_KEY nothing is sent and callers get { sent: false }.
 
 const FROM = process.env.EMAIL_FROM || "Harlem Night Market <info@harlemnightmarket.com>";
+
+export const REPLY_TO = process.env.REPLY_TO_EMAIL || "carey@uptowngrandcentral.org";
 
 export type EmailResult = { sent: true } | { sent: false; error: string };
 
@@ -29,7 +31,7 @@ export async function sendEmail(to: string, email: Email): Promise<EmailResult> 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: FROM, to: [to], reply_to: "info@harlemnightmarket.com", ...email }),
+    body: JSON.stringify({ from: FROM, to: [to], reply_to: REPLY_TO, ...email }),
   });
   if (res.ok) return { sent: true };
   const detail = await res.text().catch(() => "");
@@ -72,7 +74,7 @@ function compose(subject: string, parts: EmailPart[]): Email {
   return { subject, text, html };
 }
 
-const signoff = "Harlem Night Market team\ninfo@harlemnightmarket.com";
+const signoff = `Harlem Night Market team\n${REPLY_TO}`;
 
 function feeLines(a: StoredApplication) {
   const each = dollars(feePerDateCents(a));
@@ -93,7 +95,9 @@ export function inviteEmail(a: StoredApplication): Email {
   return compose("Welcome to the Harlem Night Market! Confirm your space", [
     `Dear ${a.contactName},`,
     `This email is to welcome ${a.businessName} to the Harlem Night Market!`,
-    "This year's market will be held at the Historic La Marqueta, 116th Street & Park Avenue in East Harlem.",
+    "This year's market will be held at either, La Placita, the glass-enclosed space under the tracks at 115th and 116th Streets, OR at Lot 2 and the Urban Garden Center, located under the Park Avenue Viaduct between 111th and 113th Streets.",
+    "These two lots are adjacent to each other, with Lot 2 featuring new bright orange and yellow shipping containers for many of our food vendors, and Urban Garden Center featuring Christmas trees, wreaths, and a festive holiday atmosphere for many of our makers.",
+    "We will keep you posted on where the market ends up. We are still awaiting final details from the NYC Economic Development Corporation. Our fingers are crossed to get back into La Placita.",
     { heading: "Dates" },
     "We have a space for you on the following date(s):",
     dateLines,
