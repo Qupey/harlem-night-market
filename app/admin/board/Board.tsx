@@ -55,14 +55,12 @@ export function Board({
   initialVendors,
   initialCapacities,
   capacityTableMissing,
-  hidden,
   dates,
   fees,
 }: {
   initialVendors: BoardVendor[];
   initialCapacities: Record<string, number>;
   capacityTableMissing: boolean;
-  hidden: { name: string; dates: string[] }[];
   dates: MarketDate[];
   fees: Fees;
 }) {
@@ -192,7 +190,7 @@ export function Board({
           <h2 className="display text-xl text-cream">
             Unplaced <span className="text-sm text-muted">· {unplaced.length}</span>
           </h2>
-          <p className="mt-1 text-xs text-muted">Starred, not booked for a date yet. Drop a card here to take it off that date.</p>
+          <p className="mt-1 text-xs text-muted">Not booked for a date yet. Drop a card here to take it off that date. Only starred vendors stay here after a reload.</p>
           <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
             {unplaced.map((v) => (
               <Card key={v.id} vendor={v} from={null} fees={fees} onOpen={() => setEditing(v.id)} />
@@ -203,7 +201,6 @@ export function Board({
         <div className="grid gap-4 md:grid-cols-3">
           {dates.map((d) => {
             const inColumn = vendors.filter((v) => v.assignedDates.includes(d.id)).sort(byCategoryThenName);
-            const hiddenCount = hidden.filter((h) => h.dates.includes(d.id)).length;
             return (
               <section
                 key={d.id}
@@ -216,7 +213,6 @@ export function Board({
                 <ColumnHeader
                   date={d}
                   vendors={inColumn}
-                  hiddenCount={hiddenCount}
                   capacity={capacities[d.id]}
                   onCapacity={(c) => saveCapacity(d.id, c)}
                   onInvalid={() => setToast("Market size must be a whole number above 0, or blank for no limit.")}
@@ -232,13 +228,6 @@ export function Board({
           })}
         </div>
       </div>
-
-      {hidden.length > 0 && (
-        <p className="mt-5 text-sm text-muted">
-          {hidden.length} accepted vendor{hidden.length === 1 ? "" : "s"} booked on these days {hidden.length === 1 ? "isn't" : "aren't"}{" "}
-          starred, so {hidden.length === 1 ? "it's" : "they're"} not shown: {hidden.map((h) => h.name).join(", ")}.
-        </p>
-      )}
 
       {editingVendor && (
         <EditPanel
@@ -284,14 +273,12 @@ function Legend() {
 function ColumnHeader({
   date,
   vendors,
-  hiddenCount,
   capacity,
   onCapacity,
   onInvalid,
 }: {
   date: MarketDate;
   vendors: BoardVendor[];
-  hiddenCount: number;
   capacity: number | undefined;
   onCapacity: (capacity: number | null) => void;
   onInvalid: () => void;
@@ -357,11 +344,6 @@ function ColumnHeader({
           );
         })}
       </ul>
-      {hiddenCount > 0 && (
-        <p className="mt-1 text-xs text-muted/80">
-          +{hiddenCount} accepted, not starred (not counted)
-        </p>
-      )}
     </div>
   );
 }

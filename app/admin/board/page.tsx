@@ -26,7 +26,7 @@ export default function MarketBoardPage() {
         </div>
       </div>
       <p className="mt-3 text-sm text-muted">
-        Starred vendors by market date. Drag a card to another date to move it there, hold Alt (Option on a Mac) while
+        Every vendor booked on a market date, plus starred vendors waiting for one. Drag a card to another date to move it there, hold Alt (Option on a Mac) while
         dropping to add that date instead, or drag it to Unplaced to take it off that date. Tap a card to edit its dates
         and category. Changes save right away; no emails are sent.
       </p>
@@ -42,7 +42,8 @@ async function BoardData() {
   const [apps, capacities] = await Promise.all([listApplications(), getCapacities()]);
 
   const vendors: BoardVendor[] = apps
-    .filter((a) => a.starred)
+    // Everyone booked on a market date, whatever their status, plus starred vendors waiting for a date.
+    .filter((a) => a.starred || (a.assignedDates ?? []).some((d) => ALL_DATES.some((x) => x.id === d)))
     .map((a) => ({
       id: a.id,
       name: a.businessName,
@@ -56,17 +57,11 @@ async function BoardData() {
       amountPaidCents: a.paid ? (a.amountPaidCents ?? 0) : null,
     }));
 
-  // Accepted vendors booked on a market date who aren't on the board because they aren't starred.
-  const hidden = apps
-    .filter((a) => !a.starred && a.status === "accepted" && (a.assignedDates ?? []).some((d) => ALL_DATES.some((x) => x.id === d)))
-    .map((a) => ({ name: a.businessName, dates: a.assignedDates ?? [] }));
-
   return (
     <Board
       initialVendors={vendors}
       initialCapacities={capacities ?? {}}
       capacityTableMissing={capacities === null}
-      hidden={hidden}
       dates={ALL_DATES.map((d) => ({ id: d.id, label: d.label, short: `${d.weekday} ${d.short}` }))}
       fees={{ hotFood: HOT_FOOD_FEE_CENTS, standard: STANDARD_FEE_CENTS }}
     />
