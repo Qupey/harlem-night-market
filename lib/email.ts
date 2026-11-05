@@ -129,7 +129,7 @@ export function inviteEmail(a: StoredApplication): Email {
         "Phone: 212-457-1254",
       ],
     },
-    { lines: ["Tony Rahsaan,", "Founder, TBo Harlem", "e. tony@tbo.media", "p.917.406.6496"] },
+    { lines: ["Tony Rahsaan", "Founder, TBo Harlem", "e. tony@tbo.media", "p. 917.406.6496"] },
   ]);
 }
 
