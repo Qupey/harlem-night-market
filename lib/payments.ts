@@ -11,7 +11,7 @@ export const STANDARD_FEE_CENTS = 3500;
 export const OVERDUE_AFTER_DAYS = 10;
 export const REMINDER_AFTER_DAYS = 7;
 export const REFUND_POLICY =
-  "Fees are per market date. Payments are non-refundable within 14 days of the market date.";
+  "Fees are per market date. Payments are non-refundable within 10 days of the market date.";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
