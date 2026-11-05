@@ -11,7 +11,6 @@ import {
   REFUND_POLICY,
   STANDARD_FEE_CENTS,
 } from "./payments";
-import { isFoodVendor } from "./schema";
 import type { StoredApplication } from "./store";
 
 // Vendor emails, sent through Resend (https://resend.com) from info@harlemnightmarket.com. Replies go to Carey.
@@ -81,8 +80,6 @@ function feeLines(a: StoredApplication) {
   return assignedDateLabels(a).map((d) => `${d} · ${each}`);
 }
 
-const FOOD_MARKET_CATEGORIES = ["Hot Food", "Sweets", "Packaged Foods", "Drinks"];
-
 export function inviteEmail(a: StoredApplication): Email {
   const event = getEvent(a.eventSlug);
   const total = dollars(amountDueCents(a));
@@ -90,8 +87,6 @@ export function inviteEmail(a: StoredApplication): Email {
     const d = event?.dates.find((x) => x.id === id);
     return d ? `${d.label.replace(/, \d{4}$/, "")} | ${d.time}` : id;
   });
-  const isFood = isFoodVendor(a.categories) || FOOD_MARKET_CATEGORIES.includes(a.marketCategory ?? "");
-  const hasLicenseFile = (a.files ?? []).some((f) => f.field === "foodLicenseFile");
   return compose("Welcome to the Harlem Night Market! Confirm your space", [
     `Dear ${a.contactName},`,
     `This email is to welcome ${a.businessName} to the Harlem Night Market!`,
@@ -118,17 +113,10 @@ export function inviteEmail(a: StoredApplication): Email {
     "1. Certificate of Insurance. Please submit a Certificate of Insurance listing the following as additional insured:",
     { lines: ["The City of New York & NYC Economic Development Corporation", "1 Liberty Plaza", "New York, NY 10006"] },
     "2. Vendor Release Form. We'll send the Vendor Release Form for you to review, sign and return.",
-    "Please reply to this email with your documents.",
-    ...(isFood
-      ? ([
-          { heading: "Food vendor requirements" },
-          "NYC EDC also requires each food vendor to submit the following:",
-          [
-            `Food Handler's License or ServSafe Certification: ${hasLicenseFile ? "Received, thank you!" : "Please reply with a copy."}`,
-            "TFSE Permit or Home Processor Registration: Please reply with a copy.",
-          ],
-        ] satisfies EmailPart[])
-      : []),
+    "If you haven't already uploaded them, please reply to this email with your documents.",
+    { heading: "Food vendor requirements" },
+    "NYC EDC also requires each food vendor to submit the following:",
+    ["Food Handler's License or ServSafe Certification", "TFSE Permit or Home Processor Registration"],
     { heading: "Vendor calls" },
     "We'll be hosting group Zoom calls before each market to review logistics and answer questions. Please look out for calendar invitations with meeting links, along with promotional materials you can share with your customers and community.",
     `We're looking forward to a wonderful market season and are excited to have ${a.businessName} join us!`,
