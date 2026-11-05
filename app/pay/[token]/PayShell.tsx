@@ -1,4 +1,5 @@
 import { BrandLockup, SiteFooter } from "@/components/Brand";
+import { REPLY_TO } from "@/lib/email";
 import { events } from "@/lib/events";
 
 // Page frame shared by the vendor payment pages.
@@ -21,8 +22,8 @@ export function ContactLine() {
   return (
     <p className="mt-6 text-center text-sm text-muted">
       Questions? Email{" "}
-      <a className="underline" href="mailto:info@harlemnightmarket.com">
-        info@harlemnightmarket.com
+      <a className="underline" href={`mailto:${REPLY_TO}`}>
+        {REPLY_TO}
       </a>
       .
     </p>
