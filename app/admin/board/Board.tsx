@@ -18,6 +18,7 @@ export type BoardVendor = {
   assignedDates: string[];
   eventDates: string[]; // the dates this vendor's event runs on
   amountPaidCents: number | null; // paid vendors only
+  invitedAt: string | null;
   // From the application, shown in the edit panel. Email and phone stay off the board.
   preferredDates: string[]; // 1st, 2nd and 3rd choice; "" when not picked
   appliedCategories: string[]; // what the vendor picked when applying, not the market category
@@ -128,6 +129,28 @@ export function Board({
       setSpaces((s) => freedFrom.reduce((all, [d, space]) => applySpaces(all, d, { [id]: space }), s));
       setToast(`Couldn't save ${before.name}: ${err instanceof Error ? err.message : "Saving failed."}`);
       return false;
+    }
+  };
+
+  // Resolves to the error text, or null once the email has gone. The server looks up the address.
+  const sendInvite = async (id: string): Promise<string | null> => {
+    try {
+      const res = await fetch("/api/admin/board/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+        cache: "no-store",
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) return body?.error ?? "The invite didn't send.";
+      setVendors((vs) =>
+        vs.map((v) =>
+          v.id === id ? { ...v, invitedAt: body.invitedAt, paymentState: body.paymentState, paymentLabel: body.paymentLabel } : v,
+        ),
+      );
+      return null;
+    } catch {
+      return "The invite didn't send. Check your connection and try again.";
     }
   };
 
@@ -386,6 +409,8 @@ export function Board({
         <EditPanel
           key={editingVendor.id}
           vendor={editingVendor}
+          fees={fees}
+          onSendInvite={() => sendInvite(editingVendor.id)}
           dates={dates.filter((d) => editingVendor.eventDates.includes(d.id))}
           vendors={vendors}
           spaces={spacesMissing ? null : spaces}
@@ -642,8 +667,105 @@ function ApplicationInfo({ vendor: v }: { vendor: BoardVendor }) {
   );
 }
 
+function PaymentSection({
+  vendor: v,
+  dates,
+  fees,
+  unsaved,
+  onSendInvite,
+}: {
+  vendor: BoardVendor;
+  dates: MarketDate[];
+  fees: Fees;
+  unsaved: boolean; // dates or category edited in the panel but not saved yet
+  onSendInvite: () => Promise<string | null>;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const booked = dates.filter((d) => v.assignedDates.includes(d.id));
+  const perDate = v.category === "Hot Food" ? fees.hotFood : fees.standard;
+  const total = perDate * booked.length;
+  const invited = v.invitedAt ? new Date(v.invitedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
+  const stateText =
+    v.paymentState === "paid"
+      ? `Paid${v.amountPaidCents ? ` ${dollars(v.amountPaidCents)}` : ""}`
+      : v.paymentState === "overdue"
+        ? `Overdue · invited ${invited}`
+        : v.invitedAt
+          ? `Invited ${invited}`
+          : "Invite not sent";
+  const blocked =
+    v.status !== "accepted"
+      ? "Accept this vendor first"
+      : booked.length === 0
+        ? "Book at least one date first"
+        : unsaved
+          ? "Save your changes first"
+          : "";
+
+  const send = async () => {
+    setSending(true);
+    const error = await onSendInvite();
+    setSending(false);
+    setConfirming(false);
+    setResult(error ? { ok: false, text: error } : { ok: true, text: `Invite sent to ${v.name}.` });
+  };
+
+  return (
+    <section className="mt-4 rounded-lg border border-line p-3">
+      <h3 className="text-xs font-bold uppercase tracking-wide text-muted">Payment</h3>
+      <p className="mt-1 text-sm font-semibold text-cream">{stateText}</p>
+      {v.paymentState !== "paid" && booked.length > 0 && (
+        <p className="text-sm text-muted">
+          Due {dollars(total)} ({dollars(perDate)} × {booked.length} {booked.length === 1 ? "date" : "dates"})
+        </p>
+      )}
+      {v.paymentState !== "paid" &&
+        (confirming ? (
+          <div className="mt-2 rounded-lg border border-gold bg-gold/10 px-3 py-2 text-sm text-gold">
+            <p>
+              Email an invite to {v.name} for {booked.map((d) => d.short).join(", ")}, total {dollars(total)}?
+            </p>
+            <div className="mt-2 flex gap-2">
+              <button type="button" onClick={send} disabled={sending} className="btn-primary px-4 py-1.5 text-sm disabled:opacity-40">
+                {sending ? "Sending..." : "Yes, send it"}
+              </button>
+              <button type="button" onClick={() => setConfirming(false)} disabled={sending} className="px-3 py-1.5 text-sm text-muted hover:text-cream">
+                Not now
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={!!blocked}
+              onClick={() => {
+                setResult(null);
+                setConfirming(true);
+              }}
+              className="btn-secondary disabled:opacity-40"
+            >
+              {v.invitedAt ? "Resend invite" : "Send invite"}
+            </button>
+            {blocked && <span className="text-xs text-muted">{blocked}</span>}
+          </div>
+        ))}
+      {result && (
+        <p role={result.ok ? "status" : "alert"} className={`mt-2 text-sm font-semibold ${result.ok ? "text-teal" : "text-pink"}`}>
+          {result.text}
+        </p>
+      )}
+    </section>
+  );
+}
+
 function EditPanel({
   vendor,
+  fees,
+  onSendInvite,
   dates,
   vendors,
   spaces,
@@ -652,6 +774,8 @@ function EditPanel({
   onSave,
 }: {
   vendor: BoardVendor;
+  fees: Fees;
+  onSendInvite: () => Promise<string | null>;
   dates: MarketDate[];
   vendors: BoardVendor[];
   spaces: Spaces | null; // null: the market_spaces table doesn't exist yet
@@ -666,6 +790,10 @@ function EditPanel({
   );
   const [spaceError, setSpaceError] = useState("");
   const [swaps, setSwaps] = useState<string[]>([]); // taken spaces, waiting for Save to confirm the swap
+  const unsaved =
+    category !== vendor.category ||
+    picked.size !== vendor.assignedDates.length ||
+    vendor.assignedDates.some((d) => !picked.has(d));
 
   const submit = () => {
     const changes: Record<string, SpaceChanges> = {};
@@ -785,6 +913,7 @@ function EditPanel({
               ))}
             </select>
           </label>
+          <PaymentSection vendor={vendor} dates={dates} fees={fees} unsaved={unsaved} onSendInvite={onSendInvite} />
         </div>
         <div className="mt-5 flex items-center justify-between gap-3">
           <a href={`/admin#app-${vendor.id}`} className="text-sm text-muted underline">

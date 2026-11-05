@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { isAdminAuthorization } from "@/lib/admin-auth";
 import { getEvent } from "@/lib/events";
 import { MARKET_CATEGORIES, STATUS_LABELS } from "@/lib/selection";
-import { declineEmail, inviteEmail, reminderEmail, sendEmail } from "@/lib/email";
+import { declineEmail, reminderEmail, sendEmail } from "@/lib/email";
+import { sendInvite } from "@/lib/invites";
 import { amountDueCents, canBeInvited, newInviteToken } from "@/lib/payments";
 import {
   deleteApplication,
@@ -83,17 +84,12 @@ export async function sendInvitesAction(form: FormData) {
       skipped++;
       continue;
     }
-    const inviteToken = a.inviteToken ?? newInviteToken();
-    if (!a.inviteToken) {
-      const saved = await updatePayment(a.id, { inviteToken });
-      if (saved.columnsMissing) backTo(form, "payments-missing", ids.size === 1 ? a.id : undefined);
-    }
-    const result = await sendEmail(a.email, inviteEmail({ ...a, inviteToken }));
+    const result = await sendInvite(a);
+    if (result.columnsMissing) backTo(form, "payments-missing", ids.size === 1 ? a.id : undefined);
     if (!result.sent) {
       failed++;
       continue;
     }
-    await updatePayment(a.id, { invitedAt: a.invitedAt ?? new Date().toISOString() });
     sent++;
   }
   backTo(form, `invites-${sent}-${failed}-${skipped}`, ids.size === 1 ? [...ids][0] : undefined);
