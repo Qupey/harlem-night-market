@@ -33,6 +33,8 @@ export type BoardVendor = {
 
 type MarketDate = { id: string; label: string; short: string };
 type Fees = { hotFood: number; standard: number };
+type Spaces = Record<string, Record<string, number>>; // date id -> vendor id -> space number
+type SpaceChanges = Record<string, number | null>; // vendor id -> space number, or null to clear
 
 // Full class names so Tailwind picks them up.
 const CATEGORY_STYLES: Record<string, { stripe: string; tint: string; dot: string }> = {
@@ -60,27 +62,40 @@ const dollars = (cents: number) => `$${(cents / 100).toFixed(cents % 100 === 0 ?
 const byCategoryThenName = (a: BoardVendor, b: BoardVendor) =>
   CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category) || a.name.localeCompare(b.name);
 
+const applySpaces = (all: Spaces, date: string, changes: SpaceChanges): Spaces => {
+  const day = { ...all[date] };
+  for (const [id, space] of Object.entries(changes)) {
+    if (space === null) delete day[id];
+    else day[id] = space;
+  }
+  return { ...all, [date]: day };
+};
+
 const DRAG_TYPE = "application/x-hnm-vendor";
 
 export function Board({
   initialVendors,
   initialCapacities,
   capacityTableMissing,
+  initialSpaces,
   dates,
   fees,
 }: {
   initialVendors: BoardVendor[];
   initialCapacities: Record<string, number>;
   capacityTableMissing: boolean;
+  initialSpaces: Spaces | null; // null: the market_spaces table doesn't exist yet
   dates: MarketDate[];
   fees: Fees;
 }) {
   const [vendors, setVendors] = useState(initialVendors);
   const [capacities, setCapacities] = useState(initialCapacities);
   const [tableMissing, setTableMissing] = useState(capacityTableMissing);
+  const [spaces, setSpaces] = useState<Spaces>(initialSpaces ?? {});
+  const [spacesMissing, setSpacesMissing] = useState(initialSpaces === null);
   const [toast, setToast] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
-  const [over, setOver] = useState<string | null>(null); // drop zone under the pointer
+  const [over, setOver] = useState<string | null>(null); // drop zone under the pointer: a date id, "unplaced" or "date#space"
 
   useEffect(() => {
     if (!toast) return;
@@ -88,10 +103,14 @@ export function Board({
     return () => clearTimeout(t);
   }, [toast]);
 
-  const save = async (id: string, assignedDates: string[], marketCategory?: string) => {
+  const save = async (id: string, assignedDates: string[], marketCategory?: string): Promise<boolean> => {
     const before = vendors.find((v) => v.id === id);
-    if (!before) return;
+    if (!before) return false;
     const ordered = before.eventDates.filter((d) => assignedDates.includes(d));
+    // Leaving a date frees the space; the server does the same when it saves the booking.
+    const freed = before.assignedDates.filter((d) => !ordered.includes(d) && spaces[d]?.[id] !== undefined);
+    const freedFrom = freed.map((d) => [d, spaces[d][id]] as const);
+    setSpaces((s) => freed.reduce((all, d) => applySpaces(all, d, { [id]: null }), s));
     setVendors((vs) =>
       vs.map((v) => (v.id === id ? { ...v, assignedDates: ordered, category: marketCategory ?? v.category } : v)),
     );
@@ -103,10 +122,62 @@ export function Board({
         cache: "no-store",
       });
       if (!res.ok) throw new Error((await res.json().catch(() => null))?.error ?? "Saving failed.");
+      return true;
     } catch (err) {
       setVendors((vs) => vs.map((v) => (v.id === id ? before : v)));
+      setSpaces((s) => freedFrom.reduce((all, [d, space]) => applySpaces(all, d, { [id]: space }), s));
       setToast(`Couldn't save ${before.name}: ${err instanceof Error ? err.message : "Saving failed."}`);
+      return false;
     }
+  };
+
+  // Shows the new spaces straight away. booking, if given, is the date change that has to save first.
+  const saveSpaces = async (date: string, changes: SpaceChanges, booking?: Promise<boolean>) => {
+    const day = spaces[date] ?? {};
+    const undo = Object.fromEntries(Object.keys(changes).map((id) => [id, day[id] ?? null]));
+    setSpaces((s) => applySpaces(s, date, changes));
+    if (booking && !(await booking)) {
+      setSpaces((s) => applySpaces(s, date, undo));
+      return;
+    }
+    try {
+      const res = await fetch("/api/admin/board/spaces", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date, changes }),
+        cache: "no-store",
+      });
+      const body = await res.json().catch(() => null);
+      if (body?.tableMissing) setSpacesMissing(true);
+      if (!res.ok) throw new Error(body?.error ?? "Saving failed.");
+    } catch (err) {
+      setSpaces((s) => applySpaces(s, date, undo));
+      setToast(`Couldn't save the space: ${err instanceof Error ? err.message : "Saving failed."}`);
+    }
+  };
+
+  // Puts a vendor in a space. If it's taken, the two swap: the other vendor gets this vendor's
+  // old space on that date, or waits for a new one if this vendor didn't have one there.
+  const placeInSpace = (v: BoardVendor, date: string, space: number, booking?: Promise<boolean>) => {
+    const day = spaces[date] ?? {};
+    const current = day[v.id];
+    if (current === space && !booking) return;
+    const occupant = Object.keys(day).find((id) => day[id] === space && id !== v.id);
+    const changes: SpaceChanges = { [v.id]: space };
+    if (occupant) changes[occupant] = current ?? null;
+    saveSpaces(date, changes, booking);
+  };
+
+  const autoFill = (date: string, waiting: BoardVendor[]) => {
+    const used = new Set(Object.values(spaces[date] ?? {}));
+    const changes: SpaceChanges = {};
+    let space = 1;
+    for (const v of [...waiting].sort(byCategoryThenName)) {
+      while (used.has(space)) space++;
+      changes[v.id] = space;
+      used.add(space);
+    }
+    saveSpaces(date, changes);
   };
 
   const saveCapacity = async (date: string, capacity: number | null) => {
@@ -140,9 +211,10 @@ export function Board({
     }
   };
 
-  // Drop on a date column (target) or the Unplaced tray (target null).
-  const drop = (e: React.DragEvent, target: string | null) => {
+  // Drop on a date column (target), a numbered space in one (target and space) or the Unplaced tray (target null).
+  const drop = (e: React.DragEvent, target: string | null, space?: number) => {
     e.preventDefault();
+    e.stopPropagation();
     setOver(null);
     let data: { id: string; from: string | null };
     try {
@@ -151,7 +223,11 @@ export function Board({
       return;
     }
     const v = vendors.find((x) => x.id === data.id);
-    if (!v || data.from === target) return;
+    if (!v) return;
+    if (data.from === target) {
+      if (target && space) placeInSpace(v, target, space);
+      return;
+    }
     if (target && !v.eventDates.includes(target)) {
       setToast(`${v.name} applied for a different event, so they can't go on that date.`);
       return;
@@ -160,21 +236,23 @@ export function Board({
     const next = new Set(v.assignedDates);
     if (data.from && !add) next.delete(data.from);
     if (target) next.add(target);
-    if (next.size === v.assignedDates.length && v.assignedDates.every((d) => next.has(d))) return;
-    save(v.id, [...next]);
+    const unchanged = next.size === v.assignedDates.length && v.assignedDates.every((d) => next.has(d));
+    const booking = unchanged ? undefined : save(v.id, [...next]);
+    if (target && space) placeInSpace(v, target, space, booking);
   };
 
-  const zone = (target: string | null) => ({
+  const zone = (target: string | null, space?: number) => ({
     onDragOver: (e: React.DragEvent) => {
       if (!e.dataTransfer.types.includes(DRAG_TYPE)) return;
       e.preventDefault();
+      e.stopPropagation();
       e.dataTransfer.dropEffect = e.altKey && target !== null ? "copy" : "move";
-      setOver(target ?? "unplaced");
+      setOver(space ? `${target}#${space}` : (target ?? "unplaced"));
     },
     onDragLeave: (e: React.DragEvent) => {
       if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOver(null);
     },
-    onDrop: (e: React.DragEvent) => drop(e, target),
+    onDrop: (e: React.DragEvent) => drop(e, target, space),
   });
 
   const unplaced = vendors.filter((v) => !v.assignedDates.some((d) => dates.some((x) => x.id === d))).sort(byCategoryThenName);
@@ -187,6 +265,11 @@ export function Board({
       {tableMissing && (
         <p className="mt-4 rounded-lg border border-gold bg-gold/10 px-3 py-2 text-sm text-gold">
           Run supabase/add-market-capacity.sql to save market sizes.
+        </p>
+      )}
+      {spacesMissing && (
+        <p className="mt-4 rounded-lg border border-gold bg-gold/10 px-3 py-2 text-sm text-gold">
+          Run supabase/add-market-spaces.sql to number the market spaces.
         </p>
       )}
 
@@ -204,7 +287,9 @@ export function Board({
           <p className="mt-1 text-xs text-muted">Not booked for a date yet. Drop a card here to take it off that date. Only starred vendors stay here after a reload.</p>
           <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
             {unplaced.map((v) => (
-              <Card key={v.id} vendor={v} from={null} fees={fees} onOpen={() => setEditing(v.id)} />
+              <li key={v.id}>
+                <Card vendor={v} from={null} fees={fees} onOpen={() => setEditing(v.id)} />
+              </li>
             ))}
           </ul>
         </section>
@@ -212,6 +297,12 @@ export function Board({
         <div className="grid gap-4 md:grid-cols-3">
           {dates.map((d) => {
             const inColumn = vendors.filter((v) => v.assignedDates.includes(d.id)).sort(byCategoryThenName);
+            const day = spaces[d.id] ?? {};
+            const waiting = inColumn.filter((v) => day[v.id] === undefined);
+            const placed = new Map(inColumn.flatMap((v) => (day[v.id] !== undefined ? [[day[v.id], v] as const] : [])));
+            const highest = Math.max(0, ...placed.keys());
+            const capacity = capacities[d.id];
+            const spaceCount = capacity ? Math.max(capacity, highest) : Math.max(highest, inColumn.length) + 1;
             return (
               <section
                 key={d.id}
@@ -228,12 +319,63 @@ export function Board({
                   onCapacity={(c) => saveCapacity(d.id, c)}
                   onInvalid={() => setToast("Market size must be a whole number above 0, or blank for no limit.")}
                 />
-                <ul className="mt-3 flex min-h-24 flex-1 flex-col gap-2">
-                  {inColumn.map((v) => (
-                    <Card key={v.id} vendor={v} from={d.id} fees={fees} onOpen={() => setEditing(v.id)} />
-                  ))}
-                  {inColumn.length === 0 && <li className="py-6 text-center text-xs text-muted">Drop vendors here</li>}
-                </ul>
+                {spacesMissing ? (
+                  <ul className="mt-3 flex min-h-24 flex-1 flex-col gap-2">
+                    {inColumn.map((v) => (
+                      <li key={v.id}>
+                        <Card vendor={v} from={d.id} fees={fees} onOpen={() => setEditing(v.id)} />
+                      </li>
+                    ))}
+                    {inColumn.length === 0 && <li className="py-6 text-center text-xs text-muted">Drop vendors here</li>}
+                  </ul>
+                ) : (
+                  <>
+                    {waiting.length > 0 && (
+                      <div className="mt-3 rounded-lg border border-gold/50 bg-gold/5 p-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <h3 className="text-xs font-bold uppercase tracking-wide text-gold">Needs a space · {waiting.length}</h3>
+                          <button
+                            type="button"
+                            onClick={() => autoFill(d.id, waiting)}
+                            className="rounded-md border border-gold/60 px-2 py-1 text-xs font-semibold text-gold hover:bg-gold/10"
+                          >
+                            Auto-fill spaces
+                          </button>
+                        </div>
+                        <ul className="mt-2 flex flex-col gap-2">
+                          {waiting.map((v) => (
+                            <li key={v.id}>
+                              <Card vendor={v} from={d.id} fees={fees} onOpen={() => setEditing(v.id)} />
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    <ol className="mt-3 flex flex-col gap-2">
+                      {Array.from({ length: spaceCount }, (_, i) => i + 1).map((n) => {
+                        const v = placed.get(n);
+                        return (
+                          <li
+                            key={n}
+                            {...zone(d.id, n)}
+                            className={`flex items-stretch gap-2 rounded-lg ${over === `${d.id}#${n}` ? "bg-gold/20 outline-2 outline-gold" : ""}`}
+                          >
+                            <span className="display w-9 shrink-0 self-center text-center text-2xl text-gold" aria-hidden="true">
+                              {n}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              {v ? (
+                                <Card vendor={v} from={d.id} space={n} fees={fees} onOpen={() => setEditing(v.id)} />
+                              ) : (
+                                <p className="rounded-lg border border-dashed border-line px-3 py-3 text-xs text-muted">Space {n} · open</p>
+                              )}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  </>
+                )}
               </section>
             );
           })}
@@ -245,10 +387,14 @@ export function Board({
           key={editingVendor.id}
           vendor={editingVendor}
           dates={dates.filter((d) => editingVendor.eventDates.includes(d.id))}
+          vendors={vendors}
+          spaces={spacesMissing ? null : spaces}
+          capacities={capacities}
           onClose={() => setEditing(null)}
-          onSave={(assignedDates, category) => {
+          onSave={(assignedDates, category, spaceChanges) => {
             setEditing(null);
-            save(editingVendor.id, assignedDates, category);
+            const booking = save(editingVendor.id, assignedDates, category);
+            for (const [date, changes] of Object.entries(spaceChanges)) saveSpaces(date, changes, booking);
           }}
         />
       )}
@@ -374,11 +520,13 @@ function paymentMismatch(v: BoardVendor, fees: Fees): string | null {
 function Card({
   vendor: v,
   from,
+  space,
   fees,
   onOpen,
 }: {
   vendor: BoardVendor;
   from: string | null;
+  space?: number;
   fees: Fees;
   onOpen: () => void;
 }) {
@@ -386,7 +534,7 @@ function Card({
   const mismatch = paymentMismatch(v, fees);
   const pay = v.paymentState ? PAYMENT_BADGE[v.paymentState] : null;
   return (
-    <li
+    <div
       draggable
       onDragStart={(e) => {
         e.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ id: v.id, from }));
@@ -401,11 +549,14 @@ function Card({
       }}
       role="button"
       tabIndex={0}
-      aria-label={`${v.name}, ${categoryName(v.category)}. Open to edit dates and category.`}
+      aria-label={`${space ? `Space ${space}, ` : ""}${v.name}, ${categoryName(v.category)}. Open to edit dates and category.`}
       className={`cursor-grab rounded-lg border border-line border-l-4 px-3 py-2 text-left active:cursor-grabbing hover:border-cream/50 focus-visible:outline-2 focus-visible:outline-gold ${s.stripe} ${s.tint}`}
     >
       <div className="flex items-start justify-between gap-2">
-        <span className="font-semibold leading-tight text-cream">{v.name}</span>
+        <span className="font-semibold leading-tight text-cream">
+          {space && <span className="text-gold">#{space} </span>}
+          {v.name}
+        </span>
         {v.needsElectricity && (
           <span title="Needs electricity" aria-label="Needs electricity">
             ⚡
@@ -420,7 +571,7 @@ function Card({
         {pay && <span className={`rounded-full px-2 py-0.5 ${pay.tone}`}>{v.paymentLabel ?? pay.label}</span>}
         {mismatch && <span className="rounded-full bg-pink/20 px-2 py-0.5 text-pink">⚠ {mismatch}</span>}
       </div>
-    </li>
+    </div>
   );
 }
 
@@ -494,16 +645,57 @@ function ApplicationInfo({ vendor: v }: { vendor: BoardVendor }) {
 function EditPanel({
   vendor,
   dates,
+  vendors,
+  spaces,
+  capacities,
   onClose,
   onSave,
 }: {
   vendor: BoardVendor;
   dates: MarketDate[];
+  vendors: BoardVendor[];
+  spaces: Spaces | null; // null: the market_spaces table doesn't exist yet
+  capacities: Record<string, number>;
   onClose: () => void;
-  onSave: (assignedDates: string[], category: string) => void;
+  onSave: (assignedDates: string[], category: string, spaceChanges: Record<string, SpaceChanges>) => void;
 }) {
   const [picked, setPicked] = useState(new Set(vendor.assignedDates));
   const [category, setCategory] = useState(vendor.category);
+  const [spaceInputs, setSpaceInputs] = useState<Record<string, string>>(() =>
+    Object.fromEntries(dates.map((d) => [d.id, spaces?.[d.id]?.[vendor.id]?.toString() ?? ""])),
+  );
+  const [spaceError, setSpaceError] = useState("");
+  const [swaps, setSwaps] = useState<string[]>([]); // taken spaces, waiting for Save to confirm the swap
+
+  const submit = () => {
+    const changes: Record<string, SpaceChanges> = {};
+    const taken: string[] = [];
+    for (const d of dates) {
+      if (!spaces || !picked.has(d.id)) continue;
+      const raw = spaceInputs[d.id].trim();
+      const space = raw === "" ? null : Number(raw);
+      if (space !== null && (!Number.isInteger(space) || space <= 0 || space > 10000)) {
+        return setSpaceError(`Space for ${d.short} must be a whole number above 0, or blank.`);
+      }
+      const day = spaces[d.id] ?? {};
+      const current = day[vendor.id] ?? null;
+      if (space === current) continue;
+      if (space !== null && capacities[d.id] && space > capacities[d.id]) {
+        return setSpaceError(`${d.short} only has ${capacities[d.id]} spaces.`);
+      }
+      const dayChanges: SpaceChanges = { [vendor.id]: space };
+      const occupantId = space === null ? undefined : Object.keys(day).find((id) => day[id] === space);
+      if (occupantId) {
+        dayChanges[occupantId] = current;
+        const occupant = vendors.find((x) => x.id === occupantId)?.name ?? "another vendor";
+        taken.push(`Space ${space} on ${d.short} is taken by ${occupant}. They'll ${current ? `move to space ${current}` : "go to Needs a space"}.`);
+      }
+      changes[d.id] = dayChanges;
+    }
+    setSpaceError("");
+    if (taken.length > 0 && swaps.join() !== taken.join()) return setSwaps(taken);
+    onSave([...picked], category, changes);
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -520,7 +712,7 @@ function EditPanel({
         onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => {
           e.preventDefault();
-          onSave([...picked], category);
+          submit();
         }}
         className="flex max-h-[85vh] w-full max-w-md flex-col rounded-2xl border border-line bg-panel p-5 shadow-2xl"
       >
@@ -531,22 +723,52 @@ function EditPanel({
             <legend className="text-xs font-bold uppercase tracking-wide text-muted">Market dates</legend>
             <div className="mt-2 space-y-2">
               {dates.map((d) => (
-                <label key={d.id} className="flex items-center gap-2 text-cream">
-                  <input
-                    type="checkbox"
-                    checked={picked.has(d.id)}
-                    onChange={(e) => {
-                      const next = new Set(picked);
-                      if (e.target.checked) next.add(d.id);
-                      else next.delete(d.id);
-                      setPicked(next);
-                    }}
-                    className="h-4 w-4 accent-teal"
-                  />
-                  {d.label}
-                </label>
+                <div key={d.id} className="flex items-center justify-between gap-2">
+                  <label className="flex items-center gap-2 text-cream">
+                    <input
+                      type="checkbox"
+                      checked={picked.has(d.id)}
+                      onChange={(e) => {
+                        const next = new Set(picked);
+                        if (e.target.checked) next.add(d.id);
+                        else next.delete(d.id);
+                        setPicked(next);
+                        setSwaps([]);
+                      }}
+                      className="h-4 w-4 accent-teal"
+                    />
+                    {d.label}
+                  </label>
+                  {spaces && picked.has(d.id) && (
+                    <label className="flex shrink-0 items-center gap-1 text-xs text-muted">
+                      Space #
+                      <input
+                        type="number"
+                        min={1}
+                        inputMode="numeric"
+                        value={spaceInputs[d.id]}
+                        onChange={(e) => {
+                          setSpaceInputs({ ...spaceInputs, [d.id]: e.target.value });
+                          setSpaceError("");
+                          setSwaps([]);
+                        }}
+                        aria-label={`Space number on ${d.label}`}
+                        className="w-16 rounded-md border border-line bg-field px-2 py-1 text-right text-cream"
+                      />
+                    </label>
+                  )}
+                </div>
               ))}
             </div>
+            {spaceError && <p role="alert" className="mt-2 text-sm font-semibold text-pink">{spaceError}</p>}
+            {swaps.length > 0 && (
+              <div role="alert" className="mt-2 rounded-lg border border-gold bg-gold/10 px-3 py-2 text-sm text-gold">
+                {swaps.map((s) => (
+                  <p key={s}>{s}</p>
+                ))}
+                <p className="mt-1 font-semibold">Save again to swap them, or change the number.</p>
+              </div>
+            )}
           </fieldset>
           <label className="mt-4 block text-xs font-bold uppercase tracking-wide text-muted">
             Category

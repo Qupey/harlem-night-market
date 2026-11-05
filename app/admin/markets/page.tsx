@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { events } from "@/lib/events";
 import { vendorsForDate } from "@/lib/export";
 import { MARKET_CATEGORIES } from "@/lib/selection";
-import { listApplications } from "@/lib/store";
+import { getSpaces, listApplications } from "@/lib/store";
 
 export const metadata = { title: "Markets | Harlem Night Market admin" };
 
@@ -29,7 +29,7 @@ export default function MarketsPage() {
         </div>
       </div>
       <p className="mt-3 text-sm text-muted">
-        Accepted vendors assigned to each market date, by category. Assign dates and categories on the applications page.
+        Accepted vendors assigned to each market date, by category and space number. Assign dates and categories on the applications page.
         The all-markets Excel file has one sheet per date.
       </p>
       <Suspense fallback={<p className="mt-8 text-muted">Loading...</p>}>
@@ -41,12 +41,12 @@ export default function MarketsPage() {
 
 async function Markets() {
   await connection();
-  const apps = await listApplications();
+  const [apps, spaces] = await Promise.all([listApplications(), getSpaces()]);
 
   return (
     <div className="mt-8 space-y-8">
       {ALL_DATES.map((d) => {
-        const vendors = vendorsForDate(apps, d.id);
+        const vendors = vendorsForDate(apps, d.id, spaces?.[d.id]);
         const groups = [...MARKET_CATEGORIES, ""]
           .map((c) => ({ category: c || "No category", vendors: vendors.filter((a) => (a.marketCategory ?? "") === c) }))
           .filter((g) => g.vendors.length > 0);
@@ -75,6 +75,7 @@ async function Markets() {
                   <table className="w-full min-w-[36rem] text-left text-sm">
                     <thead className="text-xs uppercase tracking-wide text-muted">
                       <tr>
+                        <th className="py-1 pr-4 font-medium">Space</th>
                         <th className="py-1 pr-4 font-medium">Business</th>
                         <th className="py-1 pr-4 font-medium">Contact</th>
                         <th className="py-1 pr-4 font-medium">Email</th>
@@ -84,6 +85,7 @@ async function Markets() {
                     <tbody className="divide-y divide-line text-cream">
                       {g.vendors.map((a) => (
                         <tr key={a.id}>
+                          <td className="py-1.5 pr-4 font-semibold">{a.space ?? "-"}</td>
                           <td className="py-1.5 pr-4 font-semibold">{a.businessName}</td>
                           <td className="py-1.5 pr-4">{a.contactName}</td>
                           <td className="py-1.5 pr-4">

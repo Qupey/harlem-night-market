@@ -1,6 +1,6 @@
 import { events } from "@/lib/events";
 import { toMarketCsv, toMarketXlsx, vendorsForDate } from "@/lib/export";
-import { listApplications } from "@/lib/store";
+import { getSpaces, listApplications } from "@/lib/store";
 
 // Accepted vendors per market date. ?date=2026-12-05 for one market (omit for
 // all markets, one sheet each in the .xlsx); ?format=xlsx (default) or csv.
@@ -13,8 +13,8 @@ export async function GET(request: Request) {
   if (dates.length === 0) return new Response("Unknown market date", { status: 404 });
   if (format === "csv" && dates.length > 1) return new Response("Pick one date for CSV", { status: 400 });
 
-  const apps = await listApplications();
-  const markets = dates.map((d) => ({ name: d.short, apps: vendorsForDate(apps, d.id) }));
+  const [apps, spaces] = await Promise.all([listApplications(), getSpaces()]);
+  const markets = dates.map((d) => ({ name: d.short, apps: vendorsForDate(apps, d.id, spaces?.[d.id]) }));
   const name = `market-vendors-${dateId ?? "all-dates"}.${format}`;
   const headers = { "Content-Disposition": `attachment; filename="${name}"`, "Cache-Control": "no-store" };
 

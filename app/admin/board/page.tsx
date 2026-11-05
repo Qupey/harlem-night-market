@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { dateLabel, events, getEvent } from "@/lib/events";
 import { HOT_FOOD_FEE_CENTS, PAYMENT_STATE_LABELS, paymentState, STANDARD_FEE_CENTS } from "@/lib/payments";
 import { isFoodVendor } from "@/lib/schema";
-import { getCapacities, listApplications } from "@/lib/store";
+import { getCapacities, getSpaces, listApplications } from "@/lib/store";
 import { Board, type BoardVendor } from "./Board";
 
 export const metadata = { title: "Market board | Harlem Night Market admin" };
@@ -28,8 +28,9 @@ export default function MarketBoardPage() {
       </div>
       <p className="mt-3 text-sm text-muted">
         Every vendor booked on a market date, plus starred vendors waiting for one. Drag a card to another date to move it there, hold Alt (Option on a Mac) while
-        dropping to add that date instead, or drag it to Unplaced to take it off that date. Tap a card to edit its dates
-        and category. Changes save right away; no emails are sent.
+        dropping to add that date instead, or drag it to Unplaced to take it off that date. Drop a card on a numbered space to
+        put it there, or on a taken space to swap the two; the numbers stay with the spaces to match the market map. Tap a card
+        to edit its dates, spaces and category. Changes save right away; no emails are sent.
       </p>
       <Suspense fallback={<p className="mt-8 text-muted">Loading...</p>}>
         <BoardData />
@@ -40,7 +41,7 @@ export default function MarketBoardPage() {
 
 async function BoardData() {
   await connection();
-  const [apps, capacities] = await Promise.all([listApplications(), getCapacities()]);
+  const [apps, capacities, spaces] = await Promise.all([listApplications(), getCapacities(), getSpaces()]);
 
   const vendors: BoardVendor[] = apps
     // Everyone booked on a market date, whatever their status, plus starred vendors waiting for a date.
@@ -73,6 +74,7 @@ async function BoardData() {
       initialVendors={vendors}
       initialCapacities={capacities ?? {}}
       capacityTableMissing={capacities === null}
+      initialSpaces={spaces}
       dates={ALL_DATES.map((d) => ({ id: d.id, label: d.label, short: `${d.weekday} ${d.short}` }))}
       fees={{ hotFood: HOT_FOOD_FEE_CENTS, standard: STANDARD_FEE_CENTS }}
     />

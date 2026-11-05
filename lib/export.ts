@@ -147,24 +147,27 @@ export function toCsv(apps: StoredApplication[]): string {
 }
 
 // Per-market vendor lists: accepted vendors on one market date, by category.
-const MARKET_HEADERS = ["Category", "Business Name", "Contact Name", "Email", "Phone"];
-const MARKET_WIDTHS = [16, 30, 24, 32, 16];
+const MARKET_HEADERS = ["Space", "Category", "Business Name", "Contact Name", "Email", "Phone"];
+const MARKET_WIDTHS = [8, 16, 30, 24, 32, 16];
 
 const categoryRank = (c: string | undefined) => {
   const i = (MARKET_CATEGORIES as readonly string[]).indexOf(c ?? "");
   return i === -1 ? MARKET_CATEGORIES.length : i;
 };
 
-/** Accepted vendors assigned to a date, sorted by category then business name. */
-export function vendorsForDate(apps: StoredApplication[], dateId: string): StoredApplication[] {
+export type MarketVendor = StoredApplication & { space?: number };
+
+/** Accepted vendors assigned to a date, sorted by space number, then category and business name for those without one. */
+export function vendorsForDate(apps: StoredApplication[], dateId: string, spaces: Record<string, number> = {}): MarketVendor[] {
   return apps
     .filter((a) => a.status === "accepted" && (a.assignedDates ?? []).includes(dateId))
-    .sort((a, b) => categoryRank(a.marketCategory) - categoryRank(b.marketCategory) || a.businessName.localeCompare(b.businessName));
+    .map((a) => ({ ...a, space: spaces[a.id] }))
+    .sort((a, b) => (a.space ?? Infinity) - (b.space ?? Infinity) || categoryRank(a.marketCategory) - categoryRank(b.marketCategory) || a.businessName.localeCompare(b.businessName));
 }
 
-const marketRow = (a: StoredApplication) => [a.marketCategory || "No category", a.businessName, a.contactName, a.email, a.phone];
+const marketRow = (a: MarketVendor) => [a.space ? String(a.space) : "", a.marketCategory || "No category", a.businessName, a.contactName, a.email, a.phone];
 
-export async function toMarketXlsx(markets: { name: string; apps: StoredApplication[] }[]): Promise<Buffer> {
+export async function toMarketXlsx(markets: { name: string; apps: MarketVendor[] }[]): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   wb.creator = "Harlem Night Market";
   wb.created = new Date();
@@ -177,7 +180,7 @@ export async function toMarketXlsx(markets: { name: string; apps: StoredApplicat
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
 
-export function toMarketCsv(apps: StoredApplication[]): string {
+export function toMarketCsv(apps: MarketVendor[]): string {
   const cell = (v: string) => `"${plain(v).replace(/"/g, '""')}"`;
   const lines = [MARKET_HEADERS.map(cell).join(","), ...apps.map((a) => marketRow(a).map(cell).join(","))];
   return "\uFEFF" + lines.join("\r\n") + "\r\n";

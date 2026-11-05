@@ -5,6 +5,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { isFoodVendor, type ApplicationData, type UploadField } from "./schema";
 import type {
   ApplicationStore,
+  MarketSpaces,
   PaymentFields,
   Selection,
   SelectionResult,
@@ -312,7 +313,10 @@ async function updateSelection(applicationId: string, s: Selection): Promise<Sel
     .update({ status: s.status, assigned_dates: s.assignedDates, market_category: s.marketCategory || null, updated_at: updatedAt })
     .eq("id", applicationId)
     .select("id");
-  if (!error) return { ok: data.length > 0 };
+  if (!error) {
+    if (data.length > 0) await clearSpaces(applicationId, s.assignedDates);
+    return { ok: data.length > 0 };
+  }
 
   // Columns not added yet: save the status on its own so it isn't lost.
   if (/assigned_dates|market_category/.test(error.message)) {
@@ -401,6 +405,39 @@ async function setCapacity(dateId: string, capacity: number | null): Promise<Sel
   throw new Error(`Saving market capacity failed: ${error.message}`);
 }
 
+const spacesTableMissing = (error: { code?: string; message: string }) =>
+  ["42P01", "PGRST205", "PGRST202", "42883"].includes(error.code ?? "") || /market_spaces/.test(error.message);
+
+async function getSpaces(): Promise<MarketSpaces | null> {
+  const { data, error } = await db().from("market_spaces").select("event_date, space_number, application_id");
+  if (error) {
+    if (spacesTableMissing(error)) return null;
+    throw new Error(`Reading market spaces failed: ${error.message}`);
+  }
+  const spaces: MarketSpaces = {};
+  for (const r of data as { event_date: string; space_number: number; application_id: string }[]) {
+    (spaces[r.event_date] ??= {})[r.application_id] = r.space_number;
+  }
+  return spaces;
+}
+
+async function saveSpaces(dateId: string, changes: Record<string, number | null>): Promise<SelectionResult> {
+  const { error } = await db().rpc("save_market_spaces", { p_date: dateId, p_changes: changes });
+  if (!error) return { ok: true };
+  if (error.code === "23505") return { ok: false };
+  if (spacesTableMissing(error)) return { ok: false, columnsMissing: true };
+  throw new Error(`Saving market spaces failed: ${error.message}`);
+}
+
+// Frees the vendor's space on every date they're no longer booked for. The booking itself is
+// already saved, so a failure here is logged rather than reported as a failed save.
+async function clearSpaces(applicationId: string, keepDates: string[]) {
+  let query = db().from("market_spaces").delete().eq("application_id", applicationId);
+  if (keepDates.length > 0) query = query.not("event_date", "in", `(${keepDates.join(",")})`);
+  const { error } = await query;
+  if (error && !spacesTableMissing(error)) console.error(`Clearing market spaces failed: ${error.message}`);
+}
+
 export const supabaseStore: ApplicationStore = {
   saveApplication,
   listApplications,
@@ -411,4 +448,6 @@ export const supabaseStore: ApplicationStore = {
   updatePayment,
   getCapacities,
   setCapacity,
+  getSpaces,
+  saveSpaces,
 };

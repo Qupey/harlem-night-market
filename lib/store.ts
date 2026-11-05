@@ -45,6 +45,8 @@ export type Selection = Pick<StoredApplication, "status"> & { assignedDates: str
 // supabase/add-vendor-selection.sql hasn't been run yet.
 export type SelectionResult = { ok: boolean; columnsMissing?: boolean };
 
+export type MarketSpaces = Record<string, Record<string, number>>;
+
 export type Upload = { field: UploadField; file: File };
 
 export type ApplicationStore = {
@@ -63,6 +65,12 @@ export type ApplicationStore = {
   getCapacities(): Promise<Record<string, number> | null>;
   // capacity null removes the limit. columnsMissing: the market_capacity table doesn't exist yet.
   setCapacity(dateId: string, capacity: number | null): Promise<SelectionResult>;
+  // Space numbers per market date (date id -> vendor id -> space number).
+  // null: supabase/add-market-spaces.sql hasn't been run yet.
+  getSpaces(): Promise<MarketSpaces | null>;
+  // Applies the changes together. ok false: a space is already taken, so nothing was saved.
+  // columnsMissing: the market_spaces table doesn't exist yet.
+  saveSpaces(dateId: string, changes: Record<string, number | null>): Promise<SelectionResult>;
 };
 
 const store: ApplicationStore = supabaseConfigured() ? supabaseStore : localStore;
@@ -77,4 +85,6 @@ export const {
   updatePayment,
   getCapacities,
   setCapacity,
+  getSpaces,
+  saveSpaces,
 } = store;

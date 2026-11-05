@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { ApplicationData } from "./schema";
-import type { ApplicationStore, Selection, SelectionResult, StoredApplication, StoredFile, Upload } from "./store";
+import type { ApplicationStore, MarketSpaces, Selection, SelectionResult, StoredApplication, StoredFile, Upload } from "./store";
 
 // Local file storage: keeps everything in ./data so the site runs on a laptop
 // with no outside services. Used when Supabase isn't configured.
@@ -12,6 +12,7 @@ const DATA_DIR = process.env.DATA_DIR ?? path.join(process.cwd(), "data");
 const DB_FILE = path.join(DATA_DIR, "applications.json");
 const UPLOAD_DIR = path.join(DATA_DIR, "uploads");
 const CAPACITY_FILE = path.join(DATA_DIR, "market-capacity.json");
+const SPACES_FILE = path.join(DATA_DIR, "market-spaces.json");
 
 // Serialize writes so two submissions arriving together can't overwrite each other.
 let writeQueue: Promise<unknown> = Promise.resolve();
@@ -85,7 +86,9 @@ async function readUpload(applicationId: string, fileName: string) {
 }
 
 async function updateSelection(applicationId: string, selection: Selection): Promise<SelectionResult> {
-  return updateFields(applicationId, selection);
+  const result = await updateFields(applicationId, selection);
+  if (result.ok) await clearSpaces(applicationId, selection.assignedDates);
+  return result;
 }
 
 async function updateFields(applicationId: string, fields: Partial<StoredApplication>): Promise<SelectionResult> {
@@ -119,6 +122,7 @@ async function deleteApplication(applicationId: string): Promise<boolean> {
   });
   writeQueue = job.catch(() => {});
   await job;
+  if (found) await clearSpaces(applicationId, []);
   return found;
 }
 
@@ -146,6 +150,58 @@ async function setCapacity(dateId: string, capacity: number | null): Promise<Sel
   return { ok: true };
 }
 
+async function getSpaces(): Promise<MarketSpaces> {
+  try {
+    return JSON.parse(await readFile(SPACES_FILE, "utf8")) as MarketSpaces;
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return {};
+    throw err;
+  }
+}
+
+async function writeSpaces(all: MarketSpaces) {
+  await mkdir(DATA_DIR, { recursive: true });
+  const tmp = `${SPACES_FILE}.${process.pid}.tmp`;
+  await writeFile(tmp, JSON.stringify(all, null, 2));
+  await rename(tmp, SPACES_FILE);
+}
+
+async function saveSpaces(dateId: string, changes: Record<string, number | null>): Promise<SelectionResult> {
+  let ok = false;
+  const job = writeQueue.then(async () => {
+    const all = await getSpaces();
+    const day = { ...all[dateId] };
+    for (const [id, space] of Object.entries(changes)) {
+      if (space === null) delete day[id];
+      else day[id] = space;
+    }
+    const numbers = Object.values(day);
+    if (new Set(numbers).size !== numbers.length) return;
+    all[dateId] = day;
+    await writeSpaces(all);
+    ok = true;
+  });
+  writeQueue = job.catch(() => {});
+  await job;
+  return { ok };
+}
+
+// Frees the vendor's space on every date they're no longer booked for.
+async function clearSpaces(applicationId: string, keepDates: string[]) {
+  const job = writeQueue.then(async () => {
+    const all = await getSpaces();
+    let changed = false;
+    for (const [date, day] of Object.entries(all)) {
+      if (keepDates.includes(date) || !(applicationId in day)) continue;
+      delete day[applicationId];
+      changed = true;
+    }
+    if (changed) await writeSpaces(all);
+  });
+  writeQueue = job.catch(() => {});
+  await job;
+}
+
 export const localStore: ApplicationStore = {
   saveApplication,
   listApplications,
@@ -156,4 +212,6 @@ export const localStore: ApplicationStore = {
   updatePayment: updateFields,
   getCapacities,
   setCapacity,
+  getSpaces,
+  saveSpaces,
 };
