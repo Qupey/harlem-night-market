@@ -107,8 +107,8 @@ export function inviteEmail(a: StoredApplication): Email {
     { heading: "Vendor fees" },
     "The fee for each night of the market is:",
     [
-      `${dollars(STANDARD_FEE_CENTS)} for makers, packaged food, desserts and beverages`,
-      `${dollars(HOT_FOOD_FEE_CENTS)} for hot food vendors`,
+      `${dollars(STANDARD_FEE_CENTS)} for makers, art, packaged food, desserts and beverages`,
+      `${dollars(HOT_FOOD_FEE_CENTS)} for hot food and food truck vendors`,
     ],
     `Your total for ${dateLines.length} ${dateLines.length === 1 ? "date" : "dates"} is ${total}. Your space is not held until your fee is paid, so please pay within ${OVERDUE_AFTER_DAYS} days to keep your spot.`,
     { button: `Pay ${total} and confirm my space`, href: payLink(a.inviteToken!) },

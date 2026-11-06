@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MARKET_CATEGORIES, STATUS_CHOICES, STATUS_LABELS } from "@/lib/selection";
+import { MARKET_CATEGORIES, paysHotFoodRate, STATUS_CHOICES, STATUS_LABELS } from "@/lib/selection";
 import type { StoredApplication } from "@/lib/store";
 
 // Drag-and-drop planner for /admin/board. Every change shows straight away, saves in the
@@ -40,10 +40,12 @@ type SpaceChanges = Record<string, number | null>; // vendor id -> space number,
 // Full class names so Tailwind picks them up.
 const CATEGORY_STYLES: Record<string, { stripe: string; tint: string; dot: string }> = {
   "Hot Food": { stripe: "border-l-orange", tint: "bg-orange/10", dot: "bg-orange" },
+  "Food Truck": { stripe: "border-l-red-400", tint: "bg-red-400/10", dot: "bg-red-400" },
   Sweets: { stripe: "border-l-pink", tint: "bg-pink/10", dot: "bg-pink" },
   "Packaged Foods": { stripe: "border-l-teal", tint: "bg-teal/10", dot: "bg-teal" },
   Makers: { stripe: "border-l-plum", tint: "bg-plum/30", dot: "bg-plum ring-1 ring-cream/40" },
   Drinks: { stripe: "border-l-gold", tint: "bg-gold/10", dot: "bg-gold" },
+  Art: { stripe: "border-l-sky-300", tint: "bg-sky-300/10", dot: "bg-sky-300" },
   "": { stripe: "border-l-muted/60", tint: "bg-navy-deep/40", dot: "bg-muted/60" },
 };
 const CATEGORY_ORDER = [...MARKET_CATEGORIES, ""] as string[];
@@ -546,7 +548,7 @@ function ColumnHeader({
 // A paid vendor whose booked dates no longer match what they paid for.
 function paymentMismatch(v: BoardVendor, fees: Fees): string | null {
   if (v.amountPaidCents === null) return null;
-  const fee = v.category === "Hot Food" ? fees.hotFood : fees.standard;
+  const fee = paysHotFoodRate(v.category) ? fees.hotFood : fees.standard;
   const paidDays = Math.round(v.amountPaidCents / fee);
   const booked = v.assignedDates.length;
   if (paidDays === booked) return null;
@@ -698,7 +700,7 @@ function PaymentSection({
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
 
   const booked = dates.filter((d) => v.assignedDates.includes(d.id));
-  const perDate = v.category === "Hot Food" ? fees.hotFood : fees.standard;
+  const perDate = paysHotFoodRate(v.category) ? fees.hotFood : fees.standard;
   const total = perDate * booked.length;
   const invited = v.invitedAt ? new Date(v.invitedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
   const stateText =

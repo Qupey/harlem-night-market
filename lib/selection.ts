@@ -2,7 +2,10 @@ import type { StoredApplication } from "./store";
 
 // Vendor selection in /admin: status, assigned market dates and market category.
 
-export const MARKET_CATEGORIES = ["Hot Food", "Sweets", "Packaged Foods", "Makers", "Drinks"] as const;
+export const MARKET_CATEGORIES = ["Hot Food", "Food Truck", "Sweets", "Packaged Foods", "Drinks", "Makers", "Art"] as const;
+
+// These pay the higher vendor fee; every other category pays the standard one.
+export const paysHotFoodRate = (category: string | undefined) => category === "Hot Food" || category === "Food Truck";
 
 export const STATUS_LABELS: Record<StoredApplication["status"], string> = {
   pending: "Pending",

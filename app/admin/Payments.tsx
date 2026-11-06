@@ -1,3 +1,4 @@
+import { paysHotFoodRate } from "@/lib/selection";
 import {
   amountDueCents,
   canBeInvited,
@@ -115,7 +116,9 @@ export function PaymentPanel(props: FormProps) {
             ? "Assign market dates to set the fee."
             : `${fee} × ${dates.length} date${dates.length === 1 ? "" : "s"} = `}
           {dates.length > 0 && <strong className="text-orange">{dollars(amountDueCents(a))}</strong>}
-          {a.marketCategory === "Hot Food" && <span className="text-muted"> (hot food rate)</span>}
+          {paysHotFoodRate(a.marketCategory) && (
+            <span className="text-muted"> ({a.marketCategory === "Food Truck" ? "food truck" : "hot food"} rate)</span>
+          )}
         </span>
         <PaymentBadge app={a} />
       </div>

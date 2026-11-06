@@ -29,10 +29,11 @@ const APPLIED_TO_MARKET: Record<string, (typeof MARKET_CATEGORIES)[number]> = {
   Dessert: "Sweets",
   "Packaged food": "Packaged Foods",
   Beverages: "Drinks",
+  Art: "Art",
 };
 
 // The assigned market category wins; otherwise every category the vendor picked
-// (food ones mapped as above, anything non-food counts as Makers).
+// (mapped as above, anything else counts as Makers).
 function marketCategoriesOf(a: StoredApplication): string[] {
   if (a.marketCategory) return [a.marketCategory];
   return a.categories.map((c) => APPLIED_TO_MARKET[c] ?? "Makers");

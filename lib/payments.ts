@@ -1,6 +1,7 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { getEvent } from "./events";
+import { paysHotFoodRate } from "./selection";
 import { listApplications, updatePayment, type StoredApplication } from "./store";
 
 // Vendor fees: what each accepted vendor owes, where their payment stands, and the
@@ -17,7 +18,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 // Charged per assigned market date; set on the server only, never from the browser.
 export const feePerDateCents = (a: StoredApplication) =>
-  a.marketCategory === "Hot Food" ? HOT_FOOD_FEE_CENTS : STANDARD_FEE_CENTS;
+  paysHotFoodRate(a.marketCategory) ? HOT_FOOD_FEE_CENTS : STANDARD_FEE_CENTS;
 
 export const amountDueCents = (a: StoredApplication) => feePerDateCents(a) * (a.assignedDates ?? []).length;
 

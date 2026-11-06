@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { getEvent } from "@/lib/events";
 import { canBeInvited, feePerDateCents, findByInviteToken, siteUrl } from "@/lib/payments";
+import { paysHotFoodRate } from "@/lib/selection";
 import { stripe } from "@/lib/stripe";
 
 // Sends the vendor to Stripe Checkout for every market date they're booked for.
@@ -31,7 +32,7 @@ export async function startCheckoutAction(form: FormData) {
         unit_amount: fee,
         product_data: {
           name: `Vendor space · ${event?.dates.find((x) => x.id === d)?.label ?? d}`,
-          description: `${app.businessName} · ${app.marketCategory === "Hot Food" ? "Hot food" : "Vendor"} fee`,
+          description: `${app.businessName} · ${paysHotFoodRate(app.marketCategory) ? app.marketCategory : "Vendor"} fee`,
         },
       },
     })),
