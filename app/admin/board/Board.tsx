@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MARKET_CATEGORIES, STATUS_LABELS } from "@/lib/selection";
+import { MARKET_CATEGORIES, STATUS_CHOICES, STATUS_LABELS } from "@/lib/selection";
 import type { StoredApplication } from "@/lib/store";
 
 // Drag-and-drop planner for /admin/board. Every change shows straight away, saves in the
@@ -104,7 +104,12 @@ export function Board({
     return () => clearTimeout(t);
   }, [toast]);
 
-  const save = async (id: string, assignedDates: string[], marketCategory?: string): Promise<boolean> => {
+  const save = async (
+    id: string,
+    assignedDates: string[],
+    marketCategory?: string,
+    status?: BoardVendor["status"],
+  ): Promise<boolean> => {
     const before = vendors.find((v) => v.id === id);
     if (!before) return false;
     const ordered = before.eventDates.filter((d) => assignedDates.includes(d));
@@ -113,16 +118,22 @@ export function Board({
     const freedFrom = freed.map((d) => [d, spaces[d][id]] as const);
     setSpaces((s) => freed.reduce((all, d) => applySpaces(all, d, { [id]: null }), s));
     setVendors((vs) =>
-      vs.map((v) => (v.id === id ? { ...v, assignedDates: ordered, category: marketCategory ?? v.category } : v)),
+      vs.map((v) =>
+        v.id === id ? { ...v, assignedDates: ordered, category: marketCategory ?? v.category, status: status ?? v.status } : v,
+      ),
     );
     try {
       const res = await fetch("/api/admin/board", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, assignedDates: ordered, marketCategory }),
+        body: JSON.stringify({ id, assignedDates: ordered, marketCategory, status }),
         cache: "no-store",
       });
-      if (!res.ok) throw new Error((await res.json().catch(() => null))?.error ?? "Saving failed.");
+      const body = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(body?.error ?? "Saving failed.");
+      setVendors((vs) =>
+        vs.map((v) => (v.id === id ? { ...v, paymentState: body.paymentState, paymentLabel: body.paymentLabel } : v)),
+      );
       return true;
     } catch (err) {
       setVendors((vs) => vs.map((v) => (v.id === id ? before : v)));
@@ -416,9 +427,11 @@ export function Board({
           spaces={spacesMissing ? null : spaces}
           capacities={capacities}
           onClose={() => setEditing(null)}
-          onSave={(assignedDates, category, spaceChanges) => {
-            setEditing(null);
-            const booking = save(editingVendor.id, assignedDates, category);
+          onSave={(assignedDates, category, status, spaceChanges) => {
+            // Stay open after accepting a booked vendor, so the invite can go straight out.
+            const justAccepted = status === "accepted" && editingVendor.status !== "accepted" && assignedDates.length > 0;
+            if (!justAccepted) setEditing(null);
+            const booking = save(editingVendor.id, assignedDates, category, status);
             for (const [date, changes] of Object.entries(spaceChanges)) saveSpaces(date, changes, booking);
           }}
         />
@@ -696,14 +709,13 @@ function PaymentSection({
         : v.invitedAt
           ? `Invited ${invited}`
           : "Invite not sent";
-  const blocked =
-    v.status !== "accepted"
+  const blocked = unsaved
+    ? "Save your changes first"
+    : v.status !== "accepted"
       ? "Accept this vendor first"
       : booked.length === 0
         ? "Book at least one date first"
-        : unsaved
-          ? "Save your changes first"
-          : "";
+        : "";
 
   const send = async () => {
     setSending(true);
@@ -781,16 +793,23 @@ function EditPanel({
   spaces: Spaces | null; // null: the market_spaces table doesn't exist yet
   capacities: Record<string, number>;
   onClose: () => void;
-  onSave: (assignedDates: string[], category: string, spaceChanges: Record<string, SpaceChanges>) => void;
+  onSave: (
+    assignedDates: string[],
+    category: string,
+    status: BoardVendor["status"],
+    spaceChanges: Record<string, SpaceChanges>,
+  ) => void;
 }) {
   const [picked, setPicked] = useState(new Set(vendor.assignedDates));
   const [category, setCategory] = useState(vendor.category);
+  const [status, setStatus] = useState(vendor.status);
   const [spaceInputs, setSpaceInputs] = useState<Record<string, string>>(() =>
     Object.fromEntries(dates.map((d) => [d.id, spaces?.[d.id]?.[vendor.id]?.toString() ?? ""])),
   );
   const [spaceError, setSpaceError] = useState("");
   const [swaps, setSwaps] = useState<string[]>([]); // taken spaces, waiting for Save to confirm the swap
   const unsaved =
+    status !== vendor.status ||
     category !== vendor.category ||
     picked.size !== vendor.assignedDates.length ||
     vendor.assignedDates.some((d) => !picked.has(d));
@@ -822,7 +841,8 @@ function EditPanel({
     }
     setSpaceError("");
     if (taken.length > 0 && swaps.join() !== taken.join()) return setSwaps(taken);
-    onSave([...picked], category, changes);
+    setSwaps([]);
+    onSave([...picked], category, status, changes);
   };
 
   useEffect(() => {
@@ -847,6 +867,21 @@ function EditPanel({
         <h2 className="display text-2xl text-orange">{vendor.name}</h2>
         <div className="-mx-1 mt-1 min-h-0 flex-1 overflow-y-auto px-1">
           <ApplicationInfo vendor={vendor} />
+          <label className="mt-4 block text-xs font-bold uppercase tracking-wide text-muted">
+            Status
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value as BoardVendor["status"])}
+              className="mt-1 block w-full rounded-md border border-line bg-field px-2 py-2 text-sm normal-case tracking-normal text-cream"
+            >
+              {[...new Set([...STATUS_CHOICES, vendor.status])].map((s) => (
+                <option key={s} value={s}>
+                  {STATUS_LABELS[s]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="mt-1 text-xs text-muted">Changing the status doesn&apos;t email the vendor.</p>
           <fieldset className="mt-4">
             <legend className="text-xs font-bold uppercase tracking-wide text-muted">Market dates</legend>
             <div className="mt-2 space-y-2">

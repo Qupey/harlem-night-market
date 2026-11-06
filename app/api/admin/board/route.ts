@@ -1,9 +1,10 @@
 import { getEvent } from "@/lib/events";
-import { MARKET_CATEGORIES } from "@/lib/selection";
-import { listApplications, updateSelection } from "@/lib/store";
+import { PAYMENT_STATE_LABELS, paymentState } from "@/lib/payments";
+import { MARKET_CATEGORIES, STATUS_LABELS } from "@/lib/selection";
+import { listApplications, type StoredApplication, updateSelection } from "@/lib/store";
 
-// Market board: POST { id, assignedDates, marketCategory? } books a vendor for market dates.
-// Keeps the vendor's status, sends no emails and leaves payment fields alone.
+// Market board: POST { id, assignedDates, marketCategory?, status? } books a vendor for market dates
+// and can change their status. Sends no emails and leaves payment fields alone.
 // Protected by the admin password check in proxy.ts.
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
@@ -11,9 +12,10 @@ export async function POST(request: Request) {
     typeof body?.id !== "string" ||
     !Array.isArray(body.assignedDates) ||
     !body.assignedDates.every((d: unknown) => typeof d === "string") ||
-    (body.marketCategory !== undefined && typeof body.marketCategory !== "string")
+    (body.marketCategory !== undefined && typeof body.marketCategory !== "string") ||
+    (body.status !== undefined && !Object.keys(STATUS_LABELS).includes(body.status))
   ) {
-    return Response.json({ error: "Expected { id, assignedDates, marketCategory? }" }, { status: 400 });
+    return Response.json({ error: "Expected { id, assignedDates, marketCategory?, status? }" }, { status: 400 });
   }
 
   const app = (await listApplications()).find((a) => a.id === body.id);
@@ -29,7 +31,8 @@ export async function POST(request: Request) {
 
   const assignedDates = validDates.filter((d) => dates.includes(d));
   const marketCategory = body.marketCategory ?? app.marketCategory ?? "";
-  const result = await updateSelection(app.id, { status: app.status, assignedDates, marketCategory });
+  const status: StoredApplication["status"] = body.status ?? app.status;
+  const result = await updateSelection(app.id, { status, assignedDates, marketCategory });
   if (result.columnsMissing) {
     return Response.json(
       { error: "Run supabase/add-vendor-selection.sql in the Supabase SQL Editor first." },
@@ -37,5 +40,9 @@ export async function POST(request: Request) {
     );
   }
   if (!result.ok) return Response.json({ error: "Vendor not found" }, { status: 404 });
-  return Response.json({ assignedDates, marketCategory }, { headers: { "Cache-Control": "no-store" } });
+  const state = status === "accepted" ? paymentState(app) : null;
+  return Response.json(
+    { assignedDates, marketCategory, status, paymentState: state, paymentLabel: state && PAYMENT_STATE_LABELS[state] },
+    { headers: { "Cache-Control": "no-store" } },
+  );
 }

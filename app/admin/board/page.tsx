@@ -30,7 +30,7 @@ export default function MarketBoardPage() {
         Every vendor booked on a market date, plus starred vendors waiting for one. Drag a card to another date to move it there, hold Alt (Option on a Mac) while
         dropping to add that date instead, or drag it to Unplaced to take it off that date. Drop a card on a numbered space to
         put it there, or on a taken space to swap the two; the numbers stay with the spaces to match the market map. Tap a card
-        to edit its dates, spaces and category. Changes save right away; no emails are sent.
+        to edit its status, dates, spaces and category. Changes save right away; no emails are sent.
       </p>
       <Suspense fallback={<p className="mt-8 text-muted">Loading...</p>}>
         <BoardData />
