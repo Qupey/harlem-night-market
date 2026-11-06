@@ -12,12 +12,13 @@ export const CATEGORIES = [
   "Beauty / skincare",
   "Packaged food",
   "Hot food",
+  "Food truck",
   "Beverages",
   "Dessert",
   "Other",
 ] as const;
 
-export const FOOD_CATEGORIES: readonly string[] = ["Packaged food", "Hot food", "Beverages", "Dessert"];
+export const FOOD_CATEGORIES: readonly string[] = ["Packaged food", "Hot food", "Food truck", "Beverages", "Dessert"];
 
 export const FOOD_TYPES = [
   "Packaged food",

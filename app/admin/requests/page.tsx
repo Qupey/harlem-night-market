@@ -26,6 +26,7 @@ const CATEGORY_OPTIONS = [["", "All categories"], ...MARKET_CATEGORIES.map((c) =
 // Picked-on-the-application category → market category, for vendors not given one yet.
 const APPLIED_TO_MARKET: Record<string, (typeof MARKET_CATEGORIES)[number]> = {
   "Hot food": "Hot Food",
+  "Food truck": "Food Truck",
   Dessert: "Sweets",
   "Packaged food": "Packaged Foods",
   Beverages: "Drinks",
