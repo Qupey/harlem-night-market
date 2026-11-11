@@ -162,10 +162,14 @@ export function declineEmail(a: StoredApplication): Email {
   ]);
 }
 
-export function receiptEmail(a: StoredApplication, amountCents: number): Email {
+export function receiptEmail(a: StoredApplication, amountCents: number, discountCents = 0): Email {
+  const received =
+    amountCents === 0
+      ? "Your discount code covered your vendor fee."
+      : `We received your payment of ${dollars(amountCents)}${discountCents ? ` (after a ${dollars(discountCents)} discount)` : ""}.`;
   return compose(`Payment received: your Harlem Night Market space is confirmed`, [
     `Hi ${a.contactName},`,
-    `We received your payment of ${dollars(amountCents)}. The space for ${a.businessName} is confirmed for:`,
+    `${received} The space for ${a.businessName} is confirmed for:`,
     assignedDateLabels(a),
     "We'll be in touch with load-in times and setup details before the market.",
     REFUND_POLICY,

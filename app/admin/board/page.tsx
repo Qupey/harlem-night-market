@@ -57,6 +57,7 @@ async function BoardData() {
       assignedDates: a.assignedDates ?? [],
       eventDates: events.find((e) => e.slug === a.eventSlug)?.dates.map((d) => d.id) ?? [],
       amountPaidCents: a.paid ? (a.amountPaidCents ?? 0) : null,
+      amountDiscountCents: a.paid ? (a.amountDiscountCents ?? 0) : 0,
       invitedAt: a.invitedAt ?? null,
       preferredDates: [a.firstChoice, a.secondChoice, a.thirdChoice].map((d) => (d ? dateLabel(getEvent(a.eventSlug), d) : "")),
       appliedCategories: [...a.categories.filter((c) => c !== "Other"), ...(a.otherCategory ? [a.otherCategory] : a.categories.includes("Other") ? ["Other"] : [])],

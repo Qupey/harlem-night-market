@@ -147,6 +147,7 @@ export async function markUnpaidAction(form: FormData) {
   await requireAdmin();
   const a = await findApp(form);
   await updatePayment(a.id, { paid: false, amountPaidCents: null, paidAt: null, paymentId: null, paymentMethod: null });
+  if (a.amountDiscountCents) await updatePayment(a.id, { amountDiscountCents: null });
   backTo(form, "unpaid", a.id);
 }
 

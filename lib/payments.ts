@@ -85,7 +85,7 @@ export async function findByInviteToken(token: string): Promise<StoredApplicatio
 // and the success page can both report it). Returns true only the first time.
 export async function recordPayment(
   a: StoredApplication,
-  p: { amountCents: number; paymentId: string; method: string },
+  p: { amountCents: number; discountCents?: number; paymentId: string; method: string },
 ): Promise<boolean> {
   if (a.paid) return false;
   const result = await updatePayment(a.id, {
@@ -95,5 +95,11 @@ export async function recordPayment(
     paymentId: p.paymentId,
     paymentMethod: p.method,
   });
+  // Saved separately so the payment still records before add-payment-discounts.sql has been run.
+  if (result.ok && p.discountCents) await updatePayment(a.id, { amountDiscountCents: p.discountCents });
   return result.ok;
 }
+
+// What a payment covers: the amount paid plus any promotion code discount.
+export const coveredCents = (a: Pick<StoredApplication, "amountPaidCents" | "amountDiscountCents">) =>
+  (a.amountPaidCents ?? 0) + (a.amountDiscountCents ?? 0);

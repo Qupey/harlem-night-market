@@ -33,6 +33,7 @@ export type PaymentFields = {
   reminderSentAt: string | null;
   paid: boolean;
   amountPaidCents: number | null;
+  amountDiscountCents: number | null; // taken off by a promotion code; added with add-payment-discounts.sql
   paidAt: string | null;
   paymentId: string | null; // Stripe payment intent / checkout session id, or a note for manual payments
   paymentMethod: string | null; // "stripe", "cash", "zelle", "other"

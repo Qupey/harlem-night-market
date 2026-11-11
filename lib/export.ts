@@ -36,6 +36,7 @@ const COLUMNS: Column[] = [
     value: (a) => (a.status === "accepted" && (a.assignedDates ?? []).length > 0 ? dollars(amountDueCents(a)) : ""),
   },
   { header: "Amount Paid", width: 12, value: (a) => (a.paid && a.amountPaidCents != null ? dollars(a.amountPaidCents) : "") },
+  { header: "Discount", width: 10, value: (a) => (a.paid && a.amountDiscountCents ? dollars(a.amountDiscountCents) : "") },
   {
     header: "Paid On",
     width: 14,

@@ -18,6 +18,7 @@ export async function startCheckoutAction(form: FormData) {
   const fee = feePerDateCents(app);
   const session = await client.checkout.sessions.create({
     mode: "payment",
+    allow_promotion_codes: true, // codes are created in the Stripe Dashboard
     customer_email: app.email,
     client_reference_id: app.id,
     metadata: { application_id: app.id, business: app.businessName.slice(0, 450), dates: (app.assignedDates ?? []).join(",") },

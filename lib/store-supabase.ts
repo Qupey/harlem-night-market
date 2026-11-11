@@ -174,6 +174,7 @@ type Row = {
   reminder_sent_at?: string | null;
   paid?: boolean;
   amount_paid_cents?: number | null;
+  amount_discount_cents?: number | null; // added with add-payment-discounts.sql
   paid_at?: string | null;
   payment_id?: string | null;
   payment_method?: string | null;
@@ -232,6 +233,7 @@ function toStored(r: Row): StoredApplication {
     reminderSentAt: r.reminder_sent_at ?? null,
     paid: r.paid ?? false,
     amountPaidCents: r.amount_paid_cents ?? null,
+    amountDiscountCents: r.amount_discount_cents ?? null,
     paidAt: r.paid_at ?? null,
     paymentId: r.payment_id ?? null,
     paymentMethod: r.payment_method ?? null,
@@ -365,6 +367,7 @@ const PAYMENT_COLUMNS: Record<keyof PaymentFields, string> = {
   reminderSentAt: "reminder_sent_at",
   paid: "paid",
   amountPaidCents: "amount_paid_cents",
+  amountDiscountCents: "amount_discount_cents",
   paidAt: "paid_at",
   paymentId: "payment_id",
   paymentMethod: "payment_method",

@@ -2,6 +2,7 @@ import { paysHotFoodRate } from "@/lib/selection";
 import {
   amountDueCents,
   canBeInvited,
+  coveredCents,
   dollars,
   emailConfigured,
   feePerDateCents,
@@ -129,9 +130,10 @@ export function PaymentPanel(props: FormProps) {
         {a.paid && (
           <li className="text-cream">
             Paid {a.amountPaidCents ? dollars(a.amountPaidCents) : ""}
+            {a.amountDiscountCents ? ` (discount ${dollars(a.amountDiscountCents)})` : ""}
             {a.paidAt && ` on ${when(a.paidAt)}`} · {a.paymentMethod === "stripe" ? "online (Stripe)" : a.paymentMethod}
-            {a.paid && a.amountPaidCents != null && a.amountPaidCents < amountDueCents(a) && (
-              <span className="text-pink"> · dates added since: {dollars(amountDueCents(a) - a.amountPaidCents)} more due</span>
+            {a.paid && a.amountPaidCents != null && coveredCents(a) < amountDueCents(a) && (
+              <span className="text-pink"> · dates added since: {dollars(amountDueCents(a) - coveredCents(a))} more due</span>
             )}
           </li>
         )}

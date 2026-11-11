@@ -18,6 +18,7 @@ export type BoardVendor = {
   assignedDates: string[];
   eventDates: string[]; // the dates this vendor's event runs on
   amountPaidCents: number | null; // paid vendors only
+  amountDiscountCents: number; // taken off by a promotion code
   invitedAt: string | null;
   // From the application, shown in the edit panel. Email and phone stay off the board.
   preferredDates: string[]; // 1st, 2nd and 3rd choice; "" when not picked
@@ -549,10 +550,11 @@ function ColumnHeader({
 function paymentMismatch(v: BoardVendor, fees: Fees): string | null {
   if (v.amountPaidCents === null) return null;
   const fee = paysHotFoodRate(v.category) ? fees.hotFood : fees.standard;
-  const paidDays = Math.round(v.amountPaidCents / fee);
+  const covered = v.amountPaidCents + v.amountDiscountCents;
+  const paidDays = Math.round(covered / fee);
   const booked = v.assignedDates.length;
   if (paidDays === booked) return null;
-  const diff = booked * fee - v.amountPaidCents;
+  const diff = booked * fee - covered;
   const head = `Paid for ${paidDays} day${paidDays === 1 ? "" : "s"}, booked ${booked}`;
   return diff > 0 ? `${head}: owes ${dollars(diff)}` : `${head}: ${dollars(-diff)} over`;
 }
@@ -705,7 +707,7 @@ function PaymentSection({
   const invited = v.invitedAt ? new Date(v.invitedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
   const stateText =
     v.paymentState === "paid"
-      ? `Paid${v.amountPaidCents ? ` ${dollars(v.amountPaidCents)}` : ""}`
+      ? `Paid${v.amountPaidCents ? ` ${dollars(v.amountPaidCents)}` : ""}${v.amountDiscountCents ? ` (discount ${dollars(v.amountDiscountCents)})` : ""}`
       : v.paymentState === "overdue"
         ? `Overdue · invited ${invited}`
         : v.invitedAt
