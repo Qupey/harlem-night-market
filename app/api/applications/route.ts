@@ -5,9 +5,11 @@ import {
   applicationSchema,
   isFoodVendor,
   MAX_FILE_BYTES,
+  MAX_UPLOAD_BYTES,
   MAX_FILES_PER_FIELD,
   UPLOAD_FIELDS,
   type UploadField,
+  uploadTooLargeMessage,
 } from "@/lib/schema";
 import { saveApplication } from "@/lib/store";
 
@@ -73,13 +75,17 @@ export async function POST(request: Request) {
     }
     for (const file of files) {
       if (file.size > MAX_FILE_BYTES) {
-        return NextResponse.json({ error: `${file.name} is larger than 10 MB.` }, { status: 422 });
+        return NextResponse.json({ error: `${file.name} is larger than 4 MB.` }, { status: 422 });
       }
       if (!ALLOWED_FILE_TYPES.includes(file.type)) {
         return NextResponse.json({ error: `${file.name} must be a PDF or an image.` }, { status: 422 });
       }
       uploads.push({ field, file });
     }
+  }
+  const uploadBytes = uploads.reduce((sum, u) => sum + u.file.size, 0);
+  if (uploadBytes > MAX_UPLOAD_BYTES) {
+    return NextResponse.json({ error: uploadTooLargeMessage(uploadBytes) }, { status: 413 });
   }
 
   try {

@@ -10,9 +10,12 @@ import {
   applicationSchema,
   CATEGORIES,
   countWords,
+  formatPhone,
   isFoodVendor,
   MAX_DETAIL_WORDS,
+  MAX_UPLOAD_BYTES,
   UPLOAD_FIELDS,
+  uploadTooLargeMessage,
   type ApplicationData,
   type ApplicationInput,
   type UploadField,
@@ -53,6 +56,7 @@ export function VendorApplicationForm({ eventSlug, dates }: { eventSlug: string;
     setError,
     formState: { errors, isSubmitting },
   } = form;
+  const phone = register("phone");
 
   const categories = useWatch({ control, name: "categories" });
   const food = isFoodVendor(categories);
@@ -64,15 +68,27 @@ export function VendorApplicationForm({ eventSlug, dates }: { eventSlug: string;
     const body = new FormData();
     body.set("eventSlug", eventSlug);
     body.set("data", JSON.stringify(data));
+    let uploadBytes = 0;
     for (const [field, list] of Object.entries(files) as [UploadField, File[]][]) {
       if (UPLOAD_FIELDS[field].retired || (UPLOAD_FIELDS[field].foodOnly && !food)) continue;
-      for (const f of list) body.append(field, f);
+      for (const f of list) {
+        body.append(field, f);
+        uploadBytes += f.size;
+      }
+    }
+    if (uploadBytes > MAX_UPLOAD_BYTES) {
+      setSubmitError(uploadTooLargeMessage(uploadBytes));
+      return;
     }
 
     try {
       const res = await fetch("/api/applications", { method: "POST", body });
       if (res.ok) {
         router.push("/application/thank-you");
+        return;
+      }
+      if (res.status === 413) {
+        setSubmitError(uploadTooLargeMessage(uploadBytes));
         return;
       }
       const json = (await res.json().catch(() => ({}))) as {
@@ -104,7 +120,18 @@ export function VendorApplicationForm({ eventSlug, dates }: { eventSlug: string;
             <input className="field-input" type="email" autoComplete="email" {...register("email")} />
           </Field>
           <Field label="Phone number" required error={errors.phone}>
-            <input className="field-input" type="tel" autoComplete="tel" {...register("phone")} />
+            <input
+              className="field-input"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              placeholder="212-555-1234"
+              {...phone}
+              onChange={(e) => {
+                e.target.value = formatPhone(e.target.value);
+                return phone.onChange(e);
+              }}
+            />
           </Field>
           <Field label="Instagram" error={errors.instagram}>
             <input className="field-input" placeholder="@yourbusiness" {...register("instagram")} />

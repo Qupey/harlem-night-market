@@ -23,7 +23,7 @@ export function FileUploadField({
     const picked = Array.from(list ?? []);
     const bad = picked.find((f) => f.size > MAX_FILE_BYTES || !ALLOWED_FILE_TYPES.includes(f.type));
     if (bad) {
-      setError(`${bad.name} must be a PDF or image under 10 MB.`);
+      setError(`${bad.name} must be a PDF or image under 4 MB.`);
       return;
     }
     const next = cfg.multiple ? [...selected, ...picked].slice(0, MAX_FILES_PER_FIELD) : picked.slice(0, 1);
@@ -43,7 +43,7 @@ export function FileUploadField({
         className="flex cursor-pointer items-center justify-center rounded-lg border border-dashed border-line bg-field px-3 py-4 text-sm text-muted transition hover:border-teal"
       >
         {cfg.multiple ? "Choose files" : "Choose a file"}
-        <span className="ml-1 text-muted/70">(PDF or image, 10 MB max)</span>
+        <span className="ml-1 text-muted/70">(PDF or image, 4 MB total)</span>
       </label>
       <input
         id={id}

@@ -2,7 +2,12 @@
 
 import type { Dispatch, SetStateAction } from "react";
 import { useWatch, type UseFormReturn } from "react-hook-form";
-import { FOOD_TYPES, LICENSE_OPTIONS, type ApplicationData, type ApplicationInput, type UploadField } from "@/lib/schema";
+import {
+  FOOD_TYPES,
+  LICENSE_OPTIONS,
+  MAX_UPLOAD_BYTES,
+  uploadTooLargeMessage,
+  type ApplicationData, type ApplicationInput, type UploadField } from "@/lib/schema";
 import { FileUploadField } from "./FileUploadField";
 import { Choice, Field } from "./form-ui";
 import { MenuItemRepeater } from "./MenuItemRepeater";
@@ -25,6 +30,9 @@ export function FoodVendorFields({
     formState: { errors },
   } = form;
   const foodTypes = useWatch({ control, name: "foodTypes" });
+  const uploadBytes = Object.values(files)
+    .flat()
+    .reduce((sum, f) => sum + (f?.size ?? 0), 0);
 
   return (
     <div className="space-y-6">
@@ -51,20 +59,16 @@ export function FoodVendorFields({
         </div>
       </Field>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="License number" error={errors.licenseNumber}>
-          <input className="field-input" {...register("licenseNumber")} />
-        </Field>
-        <Field label="License expiration date" error={errors.licenseExpiration}>
-          <input className="field-input" type="date" {...register("licenseExpiration")} />
-        </Field>
-      </div>
+      <Field label="License number" error={errors.licenseNumber}>
+        <input className="field-input" {...register("licenseNumber")} />
+      </Field>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <FileUploadField field="foodLicenseFile" files={files} setFiles={setFiles} />
         <FileUploadField field="dohPermitFile" files={files} setFiles={setFiles} />
         <FileUploadField field="insuranceFile" files={files} setFiles={setFiles} />
       </div>
+      {uploadBytes > MAX_UPLOAD_BYTES && <p className="field-error">{uploadTooLargeMessage(uploadBytes)}</p>}
     </div>
   );
 }

@@ -51,6 +51,22 @@ export function isFoodVendor(categories: readonly string[] | undefined): boolean
 }
 
 const optionalText = z.string().trim().max(500).optional().or(z.literal(""));
+
+const PHONE_MESSAGE = "Enter a 10-digit phone number, like 212-555-1234";
+
+// Digits only, without a leading US country code: "(212) 555-1234" and "+1 212 555 1234" both give 2125551234.
+function phoneDigits(raw: string) {
+  const d = raw.replace(/\D/g, "");
+  return d.length === 11 && d.startsWith("1") ? d.slice(1) : d;
+}
+
+// Shapes a phone number as xxx-xxx-xxxx, also part-way through typing it.
+export function formatPhone(raw: string) {
+  const d = phoneDigits(raw).slice(0, 10);
+  if (d.length > 6) return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
+  if (d.length > 3) return `${d.slice(0, 3)}-${d.slice(3)}`;
+  return d;
+}
 const yesNo = z.enum(["yes", "no"], { message: "Please choose yes or no" });
 export const MAX_DETAIL_WORDS = 250;
 export const countWords = (text: string | undefined) => (text?.trim() ? text.trim().split(/\s+/).length : 0);
@@ -77,10 +93,9 @@ export const applicationSchema = z
     email: z.email("Enter a valid email address"),
     phone: z
       .string()
-      .trim()
-      .min(7, "Enter a valid phone number")
-      .max(25)
-      .regex(/^[0-9+().\-\s]+$/, "Enter a valid phone number"),
+      .transform(phoneDigits)
+      .refine((d) => d.length === 10, PHONE_MESSAGE)
+      .transform(formatPhone),
     instagram: optionalText,
     website: optionalText,
 
@@ -101,7 +116,7 @@ export const applicationSchema = z
     menuItems: z.array(menuItemSchema).max(30),
     foodHandlerLicense: z.enum(["yes", "no", "in_progress"]).optional(),
     licenseNumber: optionalText,
-    licenseExpiration: optionalText,
+    licenseExpiration: optionalText, // no longer asked for; kept for older applications
 
     // Event preferences
     firstChoice: z.string().optional(),
@@ -180,6 +195,10 @@ export const UPLOAD_FIELDS = {
 
 export type UploadField = keyof typeof UPLOAD_FIELDS;
 
-export const MAX_FILE_BYTES = 10 * 1024 * 1024;
+// Files go up with the form, and the host turns away requests over about 4.5 MB, so this caps the total.
+export const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+export const MAX_FILE_BYTES = MAX_UPLOAD_BYTES;
+export const uploadTooLargeMessage = (totalBytes: number) =>
+  `Your files add up to ${(totalBytes / 1024 / 1024).toFixed(1)} MB. The limit is 4 MB total. Please attach smaller photos or PDFs.`;
 export const MAX_FILES_PER_FIELD = 6;
 export const ALLOWED_FILE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/gif", "application/pdf"];
