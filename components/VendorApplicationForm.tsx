@@ -158,7 +158,12 @@ export function VendorApplicationForm({ eventSlug, dates }: { eventSlug: string;
         )}
         <div className="mt-4">
           <Field label="Additional details" error={errors.productDetails}>
-            <textarea className="field-input" rows={5} {...register("productDetails")} />
+            <textarea
+              className="field-input"
+              rows={5}
+              placeholder="Tell us about your products or what you're selling please."
+              {...register("productDetails")}
+            />
             <span className={`mt-1 block text-right text-xs ${detailWords > MAX_DETAIL_WORDS ? "text-pink" : "text-muted"}`}>
               {detailWords} / {MAX_DETAIL_WORDS} words
             </span>
