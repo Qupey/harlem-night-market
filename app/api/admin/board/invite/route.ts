@@ -1,3 +1,4 @@
+import { adminOnly } from "@/lib/admin-auth";
 import { sendInvite } from "@/lib/invites";
 import { canBeInvited, PAYMENT_STATE_LABELS, paymentState } from "@/lib/payments";
 import { listApplications } from "@/lib/store";
@@ -6,6 +7,8 @@ import { listApplications } from "@/lib/store";
 // The vendor's email address stays on the server, so errors are reworded to leave it out.
 // Protected by the admin password check in proxy.ts.
 export async function POST(request: Request) {
+  const denied = adminOnly(request);
+  if (denied) return denied;
   const body = await request.json().catch(() => null);
   if (typeof body?.id !== "string") return Response.json({ error: "Expected { id }" }, { status: 400 });
 

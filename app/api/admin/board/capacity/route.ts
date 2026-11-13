@@ -1,3 +1,4 @@
+import { adminOnly } from "@/lib/admin-auth";
 import { events } from "@/lib/events";
 import { setCapacity } from "@/lib/store";
 
@@ -6,6 +7,8 @@ const ALL_DATES = events.flatMap((e) => e.dates.map((d) => d.id));
 // Market size: POST { date, capacity } where capacity is a whole number above 0, or null for no limit.
 // Protected by the admin password check in proxy.ts.
 export async function POST(request: Request) {
+  const denied = adminOnly(request);
+  if (denied) return denied;
   const body = await request.json().catch(() => null);
   const capacity = body?.capacity;
   if (

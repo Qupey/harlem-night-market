@@ -1,3 +1,4 @@
+import { safeEqual } from "@/lib/admin-auth";
 import { reminderEmail, sendEmail } from "@/lib/email";
 import { reminderDue } from "@/lib/payments";
 import { listApplications, updatePayment } from "@/lib/store";
@@ -6,7 +7,7 @@ import { listApplications, updatePayment } from "@/lib/store";
 // Vercel sends "Authorization: Bearer <CRON_SECRET>"; anything else is turned away.
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
-  if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
+  if (!secret || !safeEqual(request.headers.get("authorization") ?? "", `Bearer ${secret}`)) {
     return new Response("Unauthorized", { status: 401 });
   }
   if (!process.env.RESEND_API_KEY) return Response.json({ skipped: "RESEND_API_KEY is not set" });

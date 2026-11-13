@@ -1,3 +1,4 @@
+import { adminOnly } from "@/lib/admin-auth";
 import { events } from "@/lib/events";
 import { toMarketCsv, toMarketXlsx, vendorsForDate } from "@/lib/export";
 import { getSpaces, listApplications } from "@/lib/store";
@@ -6,6 +7,8 @@ import { getSpaces, listApplications } from "@/lib/store";
 // all markets, one sheet each in the .xlsx); ?format=xlsx (default) or csv.
 // Protected by the admin password check in proxy.ts.
 export async function GET(request: Request) {
+  const denied = adminOnly(request);
+  if (denied) return denied;
   const url = new URL(request.url);
   const format = url.searchParams.get("format") === "csv" ? "csv" : "xlsx";
   const dateId = url.searchParams.get("date");

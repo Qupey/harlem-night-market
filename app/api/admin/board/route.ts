@@ -1,3 +1,4 @@
+import { adminOnly } from "@/lib/admin-auth";
 import { getEvent } from "@/lib/events";
 import { PAYMENT_STATE_LABELS, paymentState } from "@/lib/payments";
 import { MARKET_CATEGORIES, STATUS_LABELS } from "@/lib/selection";
@@ -7,6 +8,8 @@ import { listApplications, type StoredApplication, updateSelection } from "@/lib
 // and can change their status. Sends no emails and leaves payment fields alone.
 // Protected by the admin password check in proxy.ts.
 export async function POST(request: Request) {
+  const denied = adminOnly(request);
+  if (denied) return denied;
   const body = await request.json().catch(() => null);
   if (
     typeof body?.id !== "string" ||

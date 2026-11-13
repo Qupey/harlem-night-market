@@ -1,7 +1,10 @@
+import { adminOnly } from "@/lib/admin-auth";
 import { setStarred } from "@/lib/store";
 
 // Star or unstar a vendor: POST { id, starred }. Protected by the admin password check in proxy.ts.
 export async function POST(request: Request) {
+  const denied = adminOnly(request);
+  if (denied) return denied;
   const body = await request.json().catch(() => null);
   if (typeof body?.id !== "string" || typeof body?.starred !== "boolean") {
     return Response.json({ error: "Expected { id, starred }" }, { status: 400 });
