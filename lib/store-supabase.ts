@@ -286,6 +286,12 @@ async function listApplications(eventSlug?: string): Promise<StoredApplication[]
   return (data as unknown as Row[]).map(toStored);
 }
 
+async function findApplicationByInviteToken(token: string): Promise<StoredApplication | undefined> {
+  const { data, error } = await db().from("vendor_applications").select(SELECT).eq("invite_token", token).maybeSingle();
+  if (error) throw new Error(`Loading application failed: ${error.message}`);
+  return data ? toStored(data as unknown as Row) : undefined;
+}
+
 async function readUpload(applicationId: string, fileName: string) {
   const filePath = `${applicationId}/${fileName}`;
   const { data: doc } = await db()
@@ -444,6 +450,7 @@ async function clearSpaces(applicationId: string, keepDates: string[]) {
 export const supabaseStore: ApplicationStore = {
   saveApplication,
   listApplications,
+  findApplicationByInviteToken,
   readUpload,
   updateSelection,
   setStarred,

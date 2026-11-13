@@ -2,7 +2,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { getEvent } from "./events";
 import { paysHotFoodRate } from "./selection";
-import { listApplications, updatePayment, type StoredApplication } from "./store";
+import { findApplicationByInviteToken, updatePayment, type StoredApplication } from "./store";
 
 // Vendor fees: what each accepted vendor owes, where their payment stands, and the
 // settings (env vars) the payment and email features need.
@@ -77,8 +77,8 @@ export function missingSettings(): string[] {
 // --- Recording a payment ---------------------------------------------------
 
 export async function findByInviteToken(token: string): Promise<StoredApplication | undefined> {
-  if (!/^[\w-]{20,}$/.test(token)) return undefined;
-  return (await listApplications()).find((a) => a.inviteToken === token);
+  if (!/^[\w-]{20,64}$/.test(token)) return undefined; // tokens are 32 base64url characters
+  return findApplicationByInviteToken(token);
 }
 
 // Marks a vendor paid. Safe to call more than once for the same payment (the Stripe webhook

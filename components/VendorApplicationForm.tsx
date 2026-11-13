@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState, type BaseSyntheticEvent } from "react";
 import { useForm, useWatch, type FieldErrors, type FieldPath } from "react-hook-form";
 import type { EventDate } from "@/lib/events";
 import {
@@ -33,6 +33,11 @@ export function VendorApplicationForm({ eventSlug, dates }: { eventSlug: string;
   const router = useRouter();
   const [files, setFiles] = useState<Partial<Record<UploadField, File[]>>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // Spam traps checked by the server: when the form appeared, and a hidden field only bots fill in.
+  const formRef = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    if (formRef.current) formRef.current.dataset.startedAt = String(Date.now());
+  }, []);
 
   const form = useForm<ApplicationInput, unknown, ApplicationData>({
     resolver: zodResolver(applicationSchema),
@@ -63,11 +68,14 @@ export function VendorApplicationForm({ eventSlug, dates }: { eventSlug: string;
   const needsElectricity = useWatch({ control, name: "needsElectricity" });
   const detailWords = countWords(useWatch({ control, name: "productDetails" }));
 
-  async function onSubmit(data: ApplicationData) {
+  async function onSubmit(data: ApplicationData, event?: BaseSyntheticEvent) {
+    const formEl = event?.target as HTMLFormElement | undefined;
     setSubmitError(null);
     const body = new FormData();
     body.set("eventSlug", eventSlug);
     body.set("data", JSON.stringify(data));
+    body.set("startedAt", formEl?.dataset.startedAt ?? "");
+    body.set("hnm_ref", (formEl?.elements.namedItem("hnm_ref") as HTMLInputElement | null)?.value ?? "");
     let uploadBytes = 0;
     for (const [field, list] of Object.entries(files) as [UploadField, File[]][]) {
       if (UPLOAD_FIELDS[field].retired || (UPLOAD_FIELDS[field].foodOnly && !food)) continue;
@@ -107,7 +115,13 @@ export function VendorApplicationForm({ eventSlug, dates }: { eventSlug: string;
   const hasErrors = Object.keys(errors).length > 0;
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-8">
+    <form ref={formRef} onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-8">
+      <div aria-hidden="true" className="absolute -left-[9999px] h-px w-px overflow-hidden">
+        <label>
+          Leave this empty
+          <input type="text" name="hnm_ref" tabIndex={-1} autoComplete="off" defaultValue="" />
+        </label>
+      </div>
       <Section title="Contact information">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Contact name" required error={errors.contactName}>

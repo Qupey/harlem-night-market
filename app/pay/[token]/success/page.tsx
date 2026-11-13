@@ -2,6 +2,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { confirmCheckoutSession } from "@/lib/checkout";
+import { findByInviteToken } from "@/lib/payments";
 import { stripe } from "@/lib/stripe";
 import { ContactLine, PayShell } from "../PayShell";
 
@@ -26,9 +27,11 @@ async function Confirm({ params, searchParams }: Pick<PageProps<"/pay/[token]/su
 
   // Record it now in case Stripe's webhook hasn't arrived yet; recording twice is harmless.
   let confirmed = false;
-  if (client && typeof sessionId === "string" && sessionId.startsWith("cs_")) {
-    const session = await client.checkout.sessions.retrieve(sessionId).catch(() => null);
-    if (session && session.metadata?.application_id) confirmed = await confirmCheckoutSession(session);
+  // Only a checkout started from this payment link can confirm it.
+  if (client && typeof sessionId === "string" && /^cs_\w{1,250}$/.test(sessionId)) {
+    const app = await findByInviteToken(token); // checks the token's format before looking it up
+    const session = app ? await client.checkout.sessions.retrieve(sessionId).catch(() => null) : null;
+    if (app && session?.metadata?.application_id === app.id) confirmed = await confirmCheckoutSession(session);
   }
 
   return (

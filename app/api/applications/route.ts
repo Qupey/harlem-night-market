@@ -3,6 +3,7 @@ import { getEvent } from "@/lib/events";
 import {
   ALLOWED_FILE_TYPES,
   applicationSchema,
+  detectFileType,
   isFoodVendor,
   MAX_FILE_BYTES,
   MAX_UPLOAD_BYTES,
@@ -26,6 +27,14 @@ export async function POST(request: Request) {
   if (!event) return NextResponse.json({ error: "Unknown event." }, { status: 404 });
   if (!event.registrationOpen) {
     return NextResponse.json({ error: "Registration for this event is closed." }, { status: 403 });
+  }
+
+  // Spam traps: a hidden field people never see, and a form filled in faster than a person could.
+  // Bots get a normal-looking success so they don't adapt; nothing is saved.
+  const startedAt = Number(form.get("startedAt"));
+  if (String(form.get("hnm_ref") ?? "") !== "" || (startedAt > 0 && Date.now() - startedAt < 3000)) {
+    console.warn("Vendor application dropped by the spam check");
+    return NextResponse.json({ id: "received" }, { status: 201 });
   }
 
   let raw: unknown;
@@ -77,10 +86,15 @@ export async function POST(request: Request) {
       if (file.size > MAX_FILE_BYTES) {
         return NextResponse.json({ error: `${file.name} is larger than 4 MB.` }, { status: 422 });
       }
-      if (!ALLOWED_FILE_TYPES.includes(file.type)) {
-        return NextResponse.json({ error: `${file.name} must be a PDF or an image.` }, { status: 422 });
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const type = detectFileType(bytes);
+      if (!type || !ALLOWED_FILE_TYPES.includes(type)) {
+        return NextResponse.json(
+          { error: `${file.name} isn't a PDF, JPEG, PNG, GIF, WEBP or HEIC file. Please attach one of those.` },
+          { status: 422 },
+        );
       }
-      uploads.push({ field, file });
+      uploads.push({ field, file: new File([bytes], file.name, { type }) });
     }
   }
   const uploadBytes = uploads.reduce((sum, u) => sum + u.file.size, 0);

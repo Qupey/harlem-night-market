@@ -77,6 +77,10 @@ async function listApplications(eventSlug?: string): Promise<StoredApplication[]
     .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
 }
 
+async function findApplicationByInviteToken(token: string): Promise<StoredApplication | undefined> {
+  return (await readAll()).find((a) => a.inviteToken === token);
+}
+
 async function readUpload(applicationId: string, fileName: string) {
   const apps = await readAll();
   const app = apps.find((a) => a.id === applicationId);
@@ -205,6 +209,7 @@ async function clearSpaces(applicationId: string, keepDates: string[]) {
 export const localStore: ApplicationStore = {
   saveApplication,
   listApplications,
+  findApplicationByInviteToken,
   readUpload,
   updateSelection,
   setStarred,

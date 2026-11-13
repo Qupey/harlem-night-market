@@ -53,6 +53,7 @@ export type Upload = { field: UploadField; file: File };
 export type ApplicationStore = {
   saveApplication(eventSlug: string, data: ApplicationData, uploads: Upload[]): Promise<StoredApplication>;
   listApplications(eventSlug?: string): Promise<StoredApplication[]>;
+  findApplicationByInviteToken(token: string): Promise<StoredApplication | undefined>;
   readUpload(applicationId: string, fileName: string): Promise<{ meta: StoredFile; data: Buffer } | null>;
   updateSelection(applicationId: string, selection: Selection): Promise<SelectionResult>;
   // columnsMissing: supabase/add-vendor-star.sql hasn't been run yet, so nothing was saved.
@@ -79,6 +80,7 @@ const store: ApplicationStore = supabaseConfigured() ? supabaseStore : localStor
 export const {
   saveApplication,
   listApplications,
+  findApplicationByInviteToken,
   readUpload,
   updateSelection,
   setStarred,

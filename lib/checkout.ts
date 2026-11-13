@@ -7,6 +7,7 @@ import { listApplications } from "./store";
 // Records a finished Stripe Checkout payment against the vendor it was for. Used by the
 // webhook and by the success page (whichever arrives first); later calls do nothing.
 export async function confirmCheckoutSession(session: Stripe.Checkout.Session): Promise<boolean> {
+  if (session.mode !== "payment") return false;
   // "no_payment_required": a promotion code took the whole fee off.
   if (session.payment_status !== "paid" && session.payment_status !== "no_payment_required") return false;
   const id = session.metadata?.application_id ?? session.client_reference_id;

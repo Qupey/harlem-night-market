@@ -52,6 +52,12 @@ export function isFoodVendor(categories: readonly string[] | undefined): boolean
 
 const optionalText = z.string().trim().max(500).optional().or(z.literal(""));
 
+// Instagram and website are shown as links in the admin, so script and data URLs are refused.
+const linkText = optionalText.refine(
+  (v) => !v || !/^(javascript|data|vbscript|file):/i.test(v.replace(/[\s\u0000-\u001f]/g, "")),
+  "Enter a web address or @handle",
+);
+
 const PHONE_MESSAGE = "Enter a 10-digit phone number, like 212-555-1234";
 
 // Digits only, without a leading US country code: "(212) 555-1234" and "+1 212 555 1234" both give 2125551234.
@@ -90,14 +96,15 @@ export const applicationSchema = z
     // Contact information
     contactName: z.string().trim().min(1, "Contact name is required").max(120),
     businessName: z.string().trim().min(1, "Business name is required").max(120),
-    email: z.email("Enter a valid email address"),
+    email: z.email("Enter a valid email address").max(254),
     phone: z
       .string()
+      .max(40, PHONE_MESSAGE)
       .transform(phoneDigits)
       .refine((d) => d.length === 10, PHONE_MESSAGE)
       .transform(formatPhone),
-    instagram: optionalText,
-    website: optionalText,
+    instagram: linkText,
+    website: linkText,
 
     // Goods / vendor type
     categories: z.array(z.enum(CATEGORIES)).min(1, "Choose at least one category"),
@@ -198,6 +205,19 @@ export type UploadField = keyof typeof UPLOAD_FIELDS;
 // Files go up with the form, and the host turns away requests over about 4.5 MB, so this caps the total.
 export const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 export const MAX_FILE_BYTES = MAX_UPLOAD_BYTES;
+// The real type of an uploaded file from its first bytes, or null if it isn't an allowed type.
+// The browser's claimed type is ignored, so a renamed file can't pass as a PDF or image.
+export function detectFileType(bytes: Uint8Array): string | null {
+  const ascii = (start: number, end: number) => String.fromCharCode(...bytes.subarray(start, end));
+  if (ascii(0, 5) === "%PDF-") return "application/pdf";
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
+  if (ascii(1, 4) === "PNG" && bytes[0] === 0x89) return "image/png";
+  if (ascii(0, 4) === "GIF8") return "image/gif";
+  if (ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP") return "image/webp";
+  if (ascii(4, 8) === "ftyp" && ["heic", "heix", "hevc", "heim", "heis", "mif1", "msf1"].includes(ascii(8, 12))) return "image/heic";
+  return null;
+}
+
 export const uploadTooLargeMessage = (totalBytes: number) =>
   `Your files add up to ${(totalBytes / 1024 / 1024).toFixed(1)} MB. The limit is 4 MB total. Please attach smaller photos or PDFs.`;
 export const MAX_FILES_PER_FIELD = 6;
