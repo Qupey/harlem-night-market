@@ -1,12 +1,11 @@
-import { adminOnly } from "@/lib/admin-auth";
+import { requireAdmin, unauthorized } from "@/lib/admin-auth";
 import { toCsv, toXlsx } from "@/lib/export";
 import { listApplications } from "@/lib/store";
 
 // Download all applications. ?format=xlsx (default) or ?format=csv.
-// Protected by the admin password check in proxy.ts.
+// Admins only (checked here and in proxy.ts).
 export async function GET(request: Request) {
-  const denied = adminOnly(request);
-  if (denied) return denied;
+  if (!(await requireAdmin(request))) return unauthorized();
   const url = new URL(request.url);
   const format = url.searchParams.get("format") === "csv" ? "csv" : "xlsx";
   const apps = await listApplications(url.searchParams.get("event") ?? undefined);

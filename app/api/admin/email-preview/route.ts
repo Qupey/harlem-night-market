@@ -1,11 +1,11 @@
-import { adminOnly } from "@/lib/admin-auth";
+import { requireAdmin, unauthorized } from "@/lib/admin-auth";
 import { declineEmail, inviteEmail, receiptEmail, reminderEmail, REPLY_TO_ALL, sendEmail } from "@/lib/email";
 import { amountDueCents } from "@/lib/payments";
 import type { StoredApplication } from "@/lib/store";
 
 // Shows what vendors receive: /api/admin/email-preview?type=invite|reminder|decline|receipt
 // Uses a made-up vendor and changes no records. Viewing sends nothing; POST { type, to } emails that
-// sample to one address, with [TEST] in the subject. Protected by the admin password check in proxy.ts.
+// sample to one address, with [TEST] in the subject. Admins only (checked here and in proxy.ts).
 const SAMPLE = {
   id: "preview",
   eventSlug: "harlem-night-market",
@@ -31,8 +31,7 @@ const sampleEmail = (type: string) =>
     : (TYPES[type as keyof typeof TYPES] ?? inviteEmail)(SAMPLE);
 
 export async function GET(request: Request) {
-  const denied = adminOnly(request);
-  if (denied) return denied;
+  if (!(await requireAdmin(request))) return unauthorized();
   const type = new URL(request.url).searchParams.get("type") ?? "invite";
   const email = sampleEmail(type);
   const nav = NAMES.map((t) => (t === type ? `<strong>${t}</strong>` : `<a href="?type=${t}">${t}</a>`)).join(" · ");
@@ -85,8 +84,7 @@ document.getElementById("test").addEventListener("submit", async (e) => {
 }
 
 export async function POST(request: Request) {
-  const denied = adminOnly(request);
-  if (denied) return denied;
+  if (!(await requireAdmin(request))) return unauthorized();
   // A form on another site can't send JSON here, so a logged-in admin's browser can't be tricked into sending.
   if (request.headers.get("content-type") !== "application/json") {
     return Response.json({ error: "Expected JSON" }, { status: 415 });

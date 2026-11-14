@@ -1,11 +1,10 @@
-import { adminOnly } from "@/lib/admin-auth";
+import { requireAdmin, unauthorized } from "@/lib/admin-auth";
 import { ALLOWED_FILE_TYPES } from "@/lib/schema";
 import { readUpload } from "@/lib/store";
 
-// Serve a vendor's uploaded document to an admin. Protected by proxy.ts.
+// Serve a vendor's uploaded document to an admin. Admins only.
 export async function GET(request: Request, ctx: RouteContext<"/api/admin/files/[id]/[file]">) {
-  const denied = adminOnly(request);
-  if (denied) return denied;
+  if (!(await requireAdmin(request))) return unauthorized();
   const { id, file } = await ctx.params;
   const found = await readUpload(id, decodeURIComponent(file));
   if (!found) return new Response("Not found", { status: 404 });

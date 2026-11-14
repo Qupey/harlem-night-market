@@ -152,6 +152,25 @@ export function reminderEmail(a: StoredApplication): Email {
   ]);
 }
 
+// Admin invites and password resets: a link to /admin/set-password, valid for 24 hours.
+export function adminLinkEmail(kind: "invite" | "reset", link: string): Email {
+  return kind === "invite"
+    ? compose("You've been added as a Harlem Night Market admin", [
+        "Hi,",
+        "You've been added as an admin for the Harlem Night Market vendor site. Choose your password to sign in:",
+        { button: "Set my password", href: link },
+        "This link works once and expires in 24 hours. If you weren't expecting it, you can ignore this email.",
+        signoff,
+      ])
+    : compose("Reset your Harlem Night Market admin password", [
+        "Hi,",
+        "Someone asked to reset the password for this admin account. To choose a new one:",
+        { button: "Choose a new password", href: link },
+        "This link works once and expires in 24 hours. If you didn't ask for it, you can ignore this email; your password hasn't changed.",
+        signoff,
+      ]);
+}
+
 export function declineEmail(a: StoredApplication): Email {
   const event = getEvent(a.eventSlug);
   return compose(`Your ${event?.name ?? "Harlem Night Market"} application`, [

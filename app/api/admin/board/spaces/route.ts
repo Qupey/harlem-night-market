@@ -1,14 +1,13 @@
-import { adminOnly } from "@/lib/admin-auth";
+import { requireAdmin, unauthorized } from "@/lib/admin-auth";
 import { events } from "@/lib/events";
 import { listApplications, saveSpaces } from "@/lib/store";
 
 const ALL_DATES = events.flatMap((e) => e.dates.map((d) => d.id));
 
 // Market spaces: POST { date, changes } where changes maps a vendor id to a space number, or null to clear it.
-// Protected by the admin password check in proxy.ts.
+// Admins only (checked here and in proxy.ts).
 export async function POST(request: Request) {
-  const denied = adminOnly(request);
-  if (denied) return denied;
+  if (!(await requireAdmin(request))) return unauthorized();
   const body = await request.json().catch(() => null);
   const changes = body?.changes;
   const values: unknown[] = changes && typeof changes === "object" && !Array.isArray(changes) ? Object.values(changes) : [];

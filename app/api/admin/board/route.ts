@@ -1,4 +1,4 @@
-import { adminOnly } from "@/lib/admin-auth";
+import { audit, requireAdmin, unauthorized } from "@/lib/admin-auth";
 import { getEvent } from "@/lib/events";
 import { PAYMENT_STATE_LABELS, paymentState } from "@/lib/payments";
 import { MARKET_CATEGORIES, STATUS_LABELS } from "@/lib/selection";
@@ -6,10 +6,10 @@ import { listApplications, type StoredApplication, updateSelection } from "@/lib
 
 // Market board: POST { id, assignedDates, marketCategory?, status? } books a vendor for market dates
 // and can change their status. Sends no emails and leaves payment fields alone.
-// Protected by the admin password check in proxy.ts.
+// Admins only (checked here and in proxy.ts).
 export async function POST(request: Request) {
-  const denied = adminOnly(request);
-  if (denied) return denied;
+  const admin = await requireAdmin(request);
+  if (!admin) return unauthorized();
   const body = await request.json().catch(() => null);
   if (
     typeof body?.id !== "string" ||
@@ -43,6 +43,9 @@ export async function POST(request: Request) {
     );
   }
   if (!result.ok) return Response.json({ error: "Vendor not found" }, { status: 404 });
+  if (status !== app.status) {
+    await audit(admin, "Changed a vendor's status", `${app.businessName}: ${STATUS_LABELS[app.status]} → ${STATUS_LABELS[status]}`);
+  }
   const state = status === "accepted" ? paymentState(app) : null;
   return Response.json(
     { assignedDates, marketCategory, status, paymentState: state, paymentLabel: state && PAYMENT_STATE_LABELS[state] },

@@ -1,8 +1,7 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { isAdminAuthorization } from "@/lib/admin-auth";
+import { adminForAction, audit } from "@/lib/admin-auth";
 import { getEvent } from "@/lib/events";
 import { MARKET_CATEGORIES, STATUS_LABELS } from "@/lib/selection";
 import { declineEmail, reminderEmail, sendEmail } from "@/lib/email";
@@ -17,7 +16,7 @@ import {
 } from "@/lib/store";
 
 export async function saveSelectionAction(form: FormData) {
-  if (!isAdminAuthorization((await headers()).get("authorization"))) throw new Error("Not authorized");
+  const admin = await adminForAction();
 
   const id = String(form.get("id") ?? "");
   const app = (await listApplications()).find((a) => a.id === id);
@@ -30,6 +29,9 @@ export async function saveSelectionAction(form: FormData) {
   const marketCategory = (MARKET_CATEGORIES as readonly string[]).includes(category) ? category : "";
 
   const result = await updateSelection(id, { status, assignedDates, marketCategory });
+  if (status !== app.status) {
+    await audit(admin, "Changed a vendor's status", `${app.businessName}: ${STATUS_LABELS[app.status]} → ${STATUS_LABELS[status]}`);
+  }
 
   // Back to the same filtered list, with a note on what happened.
   const back = new URLSearchParams(String(form.get("back") ?? ""));
@@ -43,9 +45,12 @@ export async function saveSelectionAction(form: FormData) {
 }
 
 export async function deleteApplicationAction(form: FormData) {
-  if (!isAdminAuthorization((await headers()).get("authorization"))) throw new Error("Not authorized");
+  const admin = await adminForAction();
 
-  const deleted = await deleteApplication(String(form.get("id") ?? ""));
+  const id = String(form.get("id") ?? "");
+  const app = (await listApplications()).find((a) => a.id === id);
+  const deleted = await deleteApplication(id);
+  if (deleted) await audit(admin, "Deleted a vendor application", app ? `${app.businessName} (${app.email})` : id);
 
   const back = new URLSearchParams(String(form.get("back") ?? ""));
   back.set("saved", deleted ? "deleted" : "delete-missing");
@@ -66,14 +71,12 @@ function backTo(form: FormData, saved: string, id?: string): never {
   redirect(`${returnTo}?${back}${anchor ? `#${anchor}` : ""}`);
 }
 
-async function requireAdmin() {
-  if (!isAdminAuthorization((await headers()).get("authorization"))) throw new Error("Not authorized");
-}
+const requireAdmin = () => adminForAction();
 
 // Emails each selected vendor their payment link and starts their 10-day clock.
 // Used by the button on one card and by "Send invites to selected".
 export async function sendInvitesAction(form: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const ids = new Set(form.getAll("ids").map(String));
   const apps = (await listApplications()).filter((a) => ids.has(a.id));
   let sent = 0;
@@ -91,6 +94,7 @@ export async function sendInvitesAction(form: FormData) {
       continue;
     }
     sent++;
+    await audit(admin, "Sent a payment invite", a.businessName);
   }
   backTo(form, `invites-${sent}-${failed}-${skipped}`, ids.size === 1 ? [...ids][0] : undefined);
 }
@@ -106,28 +110,30 @@ export async function createPayLinkAction(form: FormData) {
 }
 
 export async function sendReminderAction(form: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const a = await findApp(form);
   if (!canBeInvited(a) || !a.inviteToken) backTo(form, "email-skipped", a.id);
   const result = await sendEmail(a.email, reminderEmail(a));
   if (!result.sent) backTo(form, "email-failed", a.id);
   await updatePayment(a.id, { reminderSentAt: new Date().toISOString() });
+  await audit(admin, "Sent a payment reminder", a.businessName);
   backTo(form, "email-sent", a.id);
 }
 
 export async function sendDeclineEmailAction(form: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const a = await findApp(form);
   if (a.status !== "rejected") backTo(form, "email-skipped", a.id);
   const result = await sendEmail(a.email, declineEmail(a));
   if (!result.sent) backTo(form, "email-failed", a.id);
   const saved = await updatePayment(a.id, { declineEmailedAt: new Date().toISOString() });
+  await audit(admin, "Sent a decline email", a.businessName);
   backTo(form, saved.columnsMissing ? "payments-missing" : "email-sent", a.id);
 }
 
 // For fees paid outside Stripe (cash, Zelle...).
 export async function markPaidAction(form: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const a = await findApp(form);
   const method = ["cash", "zelle", "other"].includes(String(form.get("method"))) ? String(form.get("method")) : "other";
   const typed = Math.round(Number(String(form.get("amount") ?? "").replace(/[$,\s]/g, "")) * 100);
@@ -139,15 +145,17 @@ export async function markPaidAction(form: FormData) {
     paymentId: null,
     paymentMethod: method,
   });
+  if (!saved.columnsMissing) await audit(admin, "Marked a vendor paid", `${a.businessName}: $${(amountCents / 100).toFixed(2)} (${method})`);
   backTo(form, saved.columnsMissing ? "payments-missing" : "paid", a.id);
 }
 
 // Undo a payment recorded by mistake. Refunds themselves are done in the Stripe dashboard.
 export async function markUnpaidAction(form: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const a = await findApp(form);
   await updatePayment(a.id, { paid: false, amountPaidCents: null, paidAt: null, paymentId: null, paymentMethod: null });
   if (a.amountDiscountCents) await updatePayment(a.id, { amountDiscountCents: null });
+  await audit(admin, "Marked a vendor unpaid", a.businessName);
   backTo(form, "unpaid", a.id);
 }
 

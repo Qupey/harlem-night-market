@@ -1,14 +1,14 @@
-import { adminOnly } from "@/lib/admin-auth";
+import { audit, requireAdmin, unauthorized } from "@/lib/admin-auth";
 import { sendInvite } from "@/lib/invites";
 import { canBeInvited, PAYMENT_STATE_LABELS, paymentState } from "@/lib/payments";
 import { listApplications } from "@/lib/store";
 
 // Market board: POST { id } emails a vendor their payment invite, or sends it again.
 // The vendor's email address stays on the server, so errors are reworded to leave it out.
-// Protected by the admin password check in proxy.ts.
+// Admins only (checked here and in proxy.ts).
 export async function POST(request: Request) {
-  const denied = adminOnly(request);
-  if (denied) return denied;
+  const admin = await requireAdmin(request);
+  if (!admin) return unauthorized();
   const body = await request.json().catch(() => null);
   if (typeof body?.id !== "string") return Response.json({ error: "Expected { id }" }, { status: 400 });
 
@@ -25,6 +25,7 @@ export async function POST(request: Request) {
   if (!result.sent) {
     return Response.json({ error: (result.error ?? "The email didn't send.").replaceAll(app.email, "the vendor") }, { status: 502 });
   }
+  await audit(admin, "Sent a payment invite", app.businessName);
   const state = paymentState({ ...app, invitedAt: result.invitedAt });
   return Response.json(
     { invitedAt: result.invitedAt, paymentState: state, paymentLabel: PAYMENT_STATE_LABELS[state] },

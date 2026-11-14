@@ -1,14 +1,11 @@
 "use server";
 
 import { updateTag } from "next/cache";
-import { headers } from "next/headers";
-import { isAdminAuthorization } from "@/lib/admin-auth";
+import { adminForAction } from "@/lib/admin-auth";
 import { getEvent } from "@/lib/events";
 import { createFaq, deleteFaq, FAQ_TAG, moveFaq, updateFaq } from "@/lib/faq";
 
-async function requireAdmin() {
-  if (!isAdminAuthorization((await headers()).get("authorization"))) throw new Error("Not authorized");
-}
+const requireAdmin = () => adminForAction();
 
 function text(form: FormData, key: string, max: number): string {
   return String(form.get(key) ?? "").trim().slice(0, max);
