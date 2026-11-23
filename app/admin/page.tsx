@@ -13,11 +13,23 @@ type Filters = {
   date?: string;
   category?: string;
   payment?: string;
+  sort?: string;
   saved?: string;
   open?: string;
 };
 
 const ALL_DATES = events.flatMap((e) => e.dates);
+
+// "A to Z" sorts by business name, ignoring case, punctuation and a leading "The"; ties go by contact name.
+const sortName = (name: string) =>
+  name
+    .toLowerCase()
+    .replace(/^\s*the\s+/, "")
+    .replace(/[^\p{L}\p{N}\s]/gu, "")
+    .trim();
+const byName = (a: StoredApplication, b: StoredApplication) =>
+  sortName(a.businessName).localeCompare(sortName(b.businessName), "en", { numeric: true }) ||
+  a.contactName.localeCompare(b.contactName, "en", { sensitivity: "base" });
 
 export const metadata = { title: "Vendor applications | Harlem Night Market" };
 
@@ -80,12 +92,14 @@ async function ApplicationList({ searchParams }: { searchParams: Promise<Filters
       (!filters.category || a.marketCategory === filters.category) &&
       matchesPaymentFilter(a, filters.payment ?? ""),
   );
+  if (filters.sort === "az") apps.sort(byName); // otherwise newest first, as listApplications returns them
   const back = new URLSearchParams(
     Object.entries({
       status: filters.status,
       date: filters.date,
       category: filters.category,
       payment: filters.payment,
+      sort: filters.sort === "az" ? "az" : undefined,
     }).filter((e): e is [string, string] => !!e[1]),
   ).toString();
 
@@ -205,10 +219,17 @@ function FilterBar({ filters }: { filters: Filters }) {
           ))}
         </select>
       </label>
+      <label className="block">
+        <span className="field-label">Sort</span>
+        <select name="sort" defaultValue={filters.sort === "az" ? "az" : ""} className="field-input">
+          <option value="">Newest first</option>
+          <option value="az">A to Z</option>
+        </select>
+      </label>
       <button type="submit" className="btn-secondary">
         Filter
       </button>
-      {(filters.status || filters.date || filters.category || filters.payment) && (
+      {(filters.status || filters.date || filters.category || filters.payment || filters.sort) && (
         <a href="/admin" className="pb-2 text-sm text-muted underline">
           Clear
         </a>
