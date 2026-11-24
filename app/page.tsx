@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { BrandLockup, DateTiles, SiteFooter } from "@/components/Brand";
+import { HeroCarousel } from "@/components/HeroCarousel";
 import { SiteNav } from "@/components/SiteNav";
 import { defaultEventSlug, getEvent } from "@/lib/events";
 
@@ -11,6 +12,16 @@ const PHOTO_H = 768;
 const photo = (n: number) => `/photos/hnm-${String(n).padStart(2, "0")}.jpg`;
 
 const HERO = { n: 31, alt: "A crowd fills the lot under the Park Avenue Viaduct at night, lined with glowing vendor stalls" };
+
+// Hero carousel: hnm-31 first, then a mix of the lot, food, music and people.
+const HERO_SLIDES = [
+  HERO,
+  { n: 8, alt: "Yellow tents and café tables in the lot under the viaduct" },
+  { n: 21, alt: "Shoppers line up at a lit-up food stall in an orange container" },
+  { n: 28, alt: "A jazz band with upright bass and drums playing inside La Marqueta" },
+  { n: 17, alt: "A food truck and café seating on the street at dusk" },
+  { n: 24, alt: "Three friends smiling with their market purchases" },
+].map((s) => ({ src: photo(s.n), alt: s.alt }));
 
 export const metadata: Metadata = {
   title: "Harlem Night Market | First three Saturdays in December at La Marqueta",
@@ -78,17 +89,14 @@ const STAMPS = [
 ];
 
 const GALLERY = [
-  { n: 8, alt: "Yellow tents and café tables in the lot under the viaduct" },
   { n: 12, alt: "Shoppers at a jewelry booth under an orange tent" },
   { n: 20, alt: "Holiday baked goods at Lizzy's Treats NYC" },
   { n: 16, alt: "A performer in a red coat with hula hoops" },
   { n: 9, alt: "A vendor booth decorated with greenery" },
-  { n: 24, alt: "Three friends smiling with their market purchases" },
   { n: 3, alt: "Puerto Rican themed art and cards at a vendor table" },
   { n: 22, alt: "Fresh hot apple cider at the Greenside Cider Club stall" },
   { n: 14, alt: "Customers buying handmade soap bars" },
   { n: 32, alt: "Market-goers taking a selfie at night" },
-  { n: 17, alt: "Food truck and café seating on the street" },
   { n: 33, alt: "By Nature Beads crystal jewelry booth at night" },
   { n: 18, alt: "A yellow food truck under the viaduct" },
   { n: 34, alt: "Crocheted ornaments and hats at Crocheting in the City" },
@@ -98,6 +106,8 @@ const GALLERY = [
   { n: 5, alt: "Handwoven bags on display" },
   { n: 4, alt: "Natural bar soaps stacked on a table" },
   { n: 11, alt: "Jewelry displayed on a draped table" },
+  { n: 26, alt: "Families crafting together at a long workshop table" },
+  { n: 35, alt: "A shuttle bus parked under string lights at night" },
 ];
 
 function Photo({ n, alt, sizes, className = "", eager = false }: { n: number; alt: string; sizes: string; className?: string; eager?: boolean }) {
@@ -134,19 +144,17 @@ export default function Home() {
 
       <main className="w-full flex-1 overflow-x-clip">
         {/* 1. Hero */}
-        <section className="mx-auto max-w-5xl px-4 pt-8 sm:px-6 sm:pt-12">
-          <div className="flex justify-center">
+        <section>
+          <div className="flex justify-center px-4 py-6 sm:py-8">
             <BrandLockup event={event} href="/" />
           </div>
-          <div className="relative mt-8 aspect-[3/2] overflow-hidden rounded-xl shadow-2xl shadow-black/40 ring-1 ring-line/60">
-            <Photo n={HERO.n} alt={HERO.alt} sizes="(max-width: 1024px) 100vw, 1024px" eager />
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-navy-deep/70 via-transparent to-transparent" />
-          </div>
-          <div className="mx-auto max-w-3xl">
-            <h1 className="display mt-8 text-center text-[13vw] sm:text-[6.5rem]">
+          <HeroCarousel slides={HERO_SLIDES}>
+            <h1 className="display mx-auto max-w-4xl text-center text-[11vw] drop-shadow-[0_4px_18px_rgb(0_0_0/0.6)] sm:text-[6.5rem]">
               <span className="block text-orange">The original</span> <span className="block text-pink">night market</span>{" "}
               <span className="block text-cream">in Harlem returns!</span>
             </h1>
+          </HeroCarousel>
+          <div className="mx-auto max-w-3xl px-4 sm:px-6">
             <p className="mt-6 text-center text-lg font-extrabold uppercase tracking-wide text-teal sm:text-2xl">
               For the first three Saturdays in December, at the historic La Marqueta.
             </p>

@@ -57,3 +57,14 @@ body {
     @apply inline-flex items-center justify-center rounded-lg border border-teal/70 px-4 py-2 text-sm font-semibold text-teal transition hover:bg-teal hover:text-navy-deep;
   }
 }
+
+/* Hero carousel progress bar */
+@keyframes hnm-progress {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+.hnm-progress {
+  animation-name: hnm-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
