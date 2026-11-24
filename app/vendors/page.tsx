@@ -58,7 +58,7 @@ export default function VendorsPage() {
           <span className="text-orange">Vendors</span> <span className="text-cream">at the</span> <span className="text-pink">market</span>
         </h1>
         <p className="mx-auto mt-5 max-w-xl text-center text-base text-cream sm:text-lg">
-          The makers, artists and food vendors joining us each Saturday, 3:00 to 8:00 PM, under the Park Ave Viaduct.
+          The makers, artists and food vendors joining us each Saturday, 3:00 to 7:00 PM, under the Park Ave Viaduct.
         </p>
 
         <ul className="mt-8 grid grid-cols-3 gap-2 sm:gap-4">

@@ -52,9 +52,9 @@ export const events: MarketEvent[] = [
       "We're looking for local makers, artists, and food vendors to join the Harlem Night Market on the first three Saturdays in December. Apply below and tell us which market nights work best for you.",
     registrationOpen: true,
     dates: [
-      { id: "2026-12-05", label: "Saturday, December 5, 2026", weekday: "Sat", short: "Dec 5", time: "3:00 to 8:00 PM" },
-      { id: "2026-12-12", label: "Saturday, December 12, 2026", weekday: "Sat", short: "Dec 12", time: "3:00 to 8:00 PM" },
-      { id: "2026-12-19", label: "Saturday, December 19, 2026", weekday: "Sat", short: "Dec 19", time: "3:00 to 8:00 PM" },
+      { id: "2026-12-05", label: "Saturday, December 5, 2026", weekday: "Sat", short: "Dec 5", time: "3:00 to 7:00 PM" },
+      { id: "2026-12-12", label: "Saturday, December 12, 2026", weekday: "Sat", short: "Dec 12", time: "3:00 to 7:00 PM" },
+      { id: "2026-12-19", label: "Saturday, December 19, 2026", weekday: "Sat", short: "Dec 19", time: "3:00 to 7:00 PM" },
     ],
   },
 ];

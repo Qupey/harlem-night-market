@@ -15,10 +15,10 @@ const HERO = { n: 31, alt: "A crowd fills the lot under the Park Avenue Viaduct 
 export const metadata: Metadata = {
   title: "Harlem Night Market | First three Saturdays in December at La Marqueta",
   description:
-    "The original night market in Harlem returns! DJs, great food, Christmas trees, gifts, live music and crafting for the whole family. Saturdays Dec 5, 12 and 19, 3 to 8 PM, at the historic La Marqueta under the Park Ave Viaduct.",
+    "The original night market in Harlem returns! DJs, great food, Christmas trees, gifts, live music and crafting for the whole family. Saturdays Dec 5, 12 and 19, 3 to 7 PM, at the historic La Marqueta under the Park Ave Viaduct.",
   openGraph: {
     title: "The original night market in Harlem returns!",
-    description: "Saturdays Dec 5, 12 and 19, 3 to 8 PM, at the historic La Marqueta under the Park Ave Viaduct.",
+    description: "Saturdays Dec 5, 12 and 19, 3 to 7 PM, at the historic La Marqueta under the Park Ave Viaduct.",
     images: [{ url: photo(HERO.n), width: PHOTO_W, height: PHOTO_H, alt: HERO.alt }],
     type: "website",
   },
@@ -216,7 +216,7 @@ export default function Home() {
             ))}
           </ul>
           <p className="mt-6 text-center text-sm font-semibold text-muted">
-            Saturdays, Dec 5, 12 &amp; 19 &middot; 3:00 to 8:00 PM
+            Saturdays, Dec 5, 12 &amp; 19 &middot; 3:00 to 7:00 PM
           </p>
         </section>
 
