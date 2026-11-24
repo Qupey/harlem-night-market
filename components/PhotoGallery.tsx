@@ -71,7 +71,7 @@ export function PhotoGallery({ photos }: { photos: GalleryPhoto[] }) {
           role="dialog"
           aria-modal="true"
           aria-label={`Photo ${open + 1} of ${count}`}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-navy-deep/95 p-3 backdrop-blur-sm sm:p-8"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-navy-deep/95 backdrop-blur-sm"
           onClick={(e) => {
             if (e.target === e.currentTarget) close();
           }}
@@ -83,15 +83,16 @@ export function PhotoGallery({ photos }: { photos: GalleryPhoto[] }) {
             touchX.current = null;
           }}
         >
-          <figure className="relative flex max-h-full w-full max-w-6xl flex-col items-center">
+          <figure className="relative flex flex-col items-center">
             <Image
               key={current.src}
               src={current.src}
               alt={current.alt}
               width={current.width}
               height={current.height}
-              sizes="(max-width: 1200px) 100vw, 1152px"
-              className="max-h-[80svh] w-auto rounded-lg object-contain shadow-2xl shadow-black/60"
+              sizes="(max-width: 1200px) 94vw, 1152px"
+              loading="eager"
+              className="h-auto w-[min(1152px,94vw,calc((88svh-2.5rem)*1.5))] max-w-none rounded-lg shadow-2xl shadow-black/60"
             />
             <figcaption className="mt-3 text-center text-sm text-muted">
               {current.alt} <span className="text-muted/60">· {open + 1} / {count}</span>
