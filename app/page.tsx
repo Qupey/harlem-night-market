@@ -381,7 +381,7 @@ export default function Home() {
       {/* 10. Footer */}
       <SiteFooter
         event={event}
-        hostedBy="Hosted by TBo Harlem and Uptown Grand Central, in partnership with the NYC EDC and Councilmember Elsie Encarnacion."
+        hostedBy="Produced by TBo Harlem and Uptown Grand Central, in partnership with the NYC EDC and Councilmember Elsie Encarnacion."
       />
     </>
   );
