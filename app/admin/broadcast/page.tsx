@@ -83,10 +83,12 @@ async function Broadcast({ searchParams }: Pick<PageProps<"/admin/broadcast">, "
             ))}
           </select>
         </label>
-        <label className="flex items-center gap-2 pb-2 text-sm text-cream">
-          <input type="checkbox" name="declined" value="1" defaultChecked={audience.declined} className="accent-orange" />
-          Include declined vendors
-        </label>
+        {audience.who !== "declined" && (
+          <label className="flex items-center gap-2 pb-2 text-sm text-cream">
+            <input type="checkbox" name="declined" value="1" defaultChecked={audience.declined} className="accent-orange" />
+            Include declined vendors
+          </label>
+        )}
         <noscript>
           <button type="submit" className="btn-secondary">
             Update
@@ -94,7 +96,7 @@ async function Broadcast({ searchParams }: Pick<PageProps<"/admin/broadcast">, "
         </noscript>
       </AudienceForm>
       <p className="mt-2 text-xs text-muted">
-        Market date and category use what&apos;s set on each vendor&apos;s card. Declined vendors are left out unless you tick the box.
+        Market date and category use what&apos;s set on each vendor&apos;s card. Declined vendors are left out unless you choose Declined or tick the box.
       </p>
       <Composer
         // A new audience starts a fresh message form, so its list and count always match.

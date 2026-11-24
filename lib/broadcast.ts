@@ -11,6 +11,7 @@ export const AUDIENCES = {
   accepted: "Accepted",
   invited: "Invited, not yet paid",
   paid: "Paid",
+  declined: "Declined",
 } as const;
 
 export type Audience = { who: keyof typeof AUDIENCES; date: string; category: string; declined: boolean };
@@ -34,14 +35,16 @@ export function describeAudience(a: Audience): string {
     AUDIENCES[a.who],
     a.date && DATES.find((d) => d.id === a.date)?.short,
     a.category,
-    a.declined && "including declined",
+    a.declined && a.who !== "declined" && "including declined",
   ]
     .filter(Boolean)
     .join(" · ");
 }
 
 function matches(app: StoredApplication, a: Audience): boolean {
-  if (app.status === "rejected" && !a.declined) return false;
+  if (a.who === "declined") {
+    if (app.status !== "rejected") return false;
+  } else if (app.status === "rejected" && !a.declined) return false;
   if (a.who === "accepted" && app.status !== "accepted") return false;
   if (a.who === "invited" && !(app.invitedAt && !app.paid)) return false;
   if (a.who === "paid" && !app.paid) return false;
