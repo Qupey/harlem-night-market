@@ -235,6 +235,10 @@ export function SavedNotice({ saved }: { saved?: string }) {
     "link-ready": ["Payment link ready: it's in the vendor's card under Vendor fee.", true],
     unpaid: ["Payment removed; the vendor is unpaid again.", true],
     "payments-missing": ["Not saved: run supabase/add-payments.sql in the Supabase SQL Editor first.", false],
+    "updated-invite-sent": ["Updated invite sent. Their 10-day deadline starts again today.", true],
+    refunded: ["Refund recorded.", true],
+    "refund-none": ["No refund is owed for this vendor.", false],
+    "refunds-missing": ["Not saved: run supabase/add-invited-dates.sql in the Supabase SQL Editor first.", false],
   };
   if (saved && notes[saved]) {
     const [text, ok] = notes[saved];

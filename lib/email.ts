@@ -47,7 +47,13 @@ export async function sendEmail(to: string, email: Email): Promise<EmailResult> 
 const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
-type EmailPart = string | string[] | { button: string; href: string } | { heading: string } | { lines: string[] };
+type EmailPart =
+  | string
+  | string[]
+  | { button: string; href: string }
+  | { heading: string }
+  | { lines: string[] }
+  | { highlight: string };
 
 // Builds the plain-text and HTML versions from the same parts: paragraphs, bullet lists (arrays),
 // buttons, section headings and blocks of consecutive lines.
@@ -57,6 +63,7 @@ function compose(subject: string, parts: EmailPart[]): Email {
       if (typeof p === "string") return p;
       if (Array.isArray(p)) return p.map((x) => `  • ${x}`).join("\n");
       if ("heading" in p) return p.heading.toUpperCase();
+      if ("highlight" in p) return `>> ${p.highlight}`;
       if ("lines" in p) return p.lines.join("\n");
       return `${p.button}: ${p.href}`;
     })
@@ -67,7 +74,9 @@ function compose(subject: string, parts: EmailPart[]): Email {
         ? `<p style="margin:0 0 16px">${esc(p)}</p>`
         : Array.isArray(p)
           ? `<ul style="margin:0 0 16px;padding-left:20px">${p.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`
-          : "heading" in p
+          : "highlight" in p
+            ? `<p style="margin:0 0 16px;padding:12px 16px;background:#fff4d6;border-left:4px solid #f2832a;font-weight:bold">${esc(p.highlight)}</p>`
+            : "heading" in p
             ? `<p style="margin:28px 0 8px;font-weight:bold;letter-spacing:0.04em;color:#0e0e52">${esc(p.heading.toUpperCase())}</p>`
             : "lines" in p
               ? `<p style="margin:0 0 16px">${p.lines.map(esc).join("<br>")}</p>`
@@ -85,15 +94,16 @@ function feeLines(a: StoredApplication) {
   return assignedDateLabels(a).map((d) => `${d} · ${each}`);
 }
 
-export function inviteEmail(a: StoredApplication): Email {
+export function inviteEmail(a: StoredApplication, { updated = false } = {}): Email {
   const event = getEvent(a.eventSlug);
   const total = dollars(amountDueCents(a));
   const dateLines = (a.assignedDates ?? []).map((id) => {
     const d = event?.dates.find((x) => x.id === id);
     return d ? `${d.label.replace(/, \d{4}$/, "")} | ${d.time}` : id;
   });
-  return compose("Welcome to the Harlem Night Market! Confirm your space", [
+  return compose(updated ? "Updated: your Harlem Night Market dates and fee" : "Welcome to the Harlem Night Market! Confirm your space", [
     `Dear ${a.contactName},`,
+    ...(updated ? [{ highlight: "Your market dates have changed. Here are your updated dates and total." }] : []),
     `This email is to welcome ${a.businessName} to the Harlem Night Market!`,
     "This year's market will be held at either, La Placita, the glass-enclosed space under the tracks at 115th and 116th Streets, OR at Lot 2 and the Urban Garden Center, located under the Park Avenue Viaduct between 111th and 113th Streets.",
     "These two lots are adjacent to each other, with Lot 2 featuring new bright orange and yellow shipping containers for many of our food vendors, and Urban Garden Center featuring Christmas trees, wreaths, and a festive holiday atmosphere for many of our makers.",

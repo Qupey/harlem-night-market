@@ -179,6 +179,9 @@ type Row = {
   payment_id?: string | null;
   payment_method?: string | null;
   decline_emailed_at?: string | null;
+  invited_dates?: string[] | null; // added with add-invited-dates.sql
+  refunded_cents?: number | null;
+  refunded_at?: string | null;
   submitted_at: string;
   vendor_date_preferences: { event_date: string; rank: number }[];
   // One-to-one, so PostgREST returns an object (or null); accept an array too.
@@ -238,6 +241,9 @@ function toStored(r: Row): StoredApplication {
     paymentId: r.payment_id ?? null,
     paymentMethod: r.payment_method ?? null,
     declineEmailedAt: r.decline_emailed_at ?? null,
+    invitedDates: r.invited_dates ?? null,
+    refundedCents: r.refunded_cents ?? null,
+    refundedAt: r.refunded_at ?? null,
     submittedAt: r.submitted_at,
     contactName: r.contact_name,
     businessName: r.business_name,
@@ -378,6 +384,9 @@ const PAYMENT_COLUMNS: Record<keyof PaymentFields, string> = {
   paymentId: "payment_id",
   paymentMethod: "payment_method",
   declineEmailedAt: "decline_emailed_at",
+  invitedDates: "invited_dates",
+  refundedCents: "refunded_cents",
+  refundedAt: "refunded_at",
 };
 
 async function updatePayment(applicationId: string, fields: Partial<PaymentFields>): Promise<SelectionResult> {

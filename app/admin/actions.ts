@@ -6,7 +6,8 @@ import { getEvent } from "@/lib/events";
 import { MARKET_CATEGORIES, STATUS_LABELS } from "@/lib/selection";
 import { declineEmail, reminderEmail, sendEmail } from "@/lib/email";
 import { sendInvite } from "@/lib/invites";
-import { amountDueCents, canBeInvited, newInviteToken } from "@/lib/payments";
+import { amountDueCents, assignedDateLabels, canBeInvited, dollars, feePerDateCents, newInviteToken } from "@/lib/payments";
+import { refundOwedCents } from "@/lib/refunds";
 import {
   deleteApplication,
   listApplications,
@@ -99,6 +100,37 @@ export async function sendInvitesAction(form: FormData) {
   backTo(form, `invites-${sent}-${failed}-${skipped}`, ids.size === 1 ? [...ids][0] : undefined);
 }
 
+// For an invited, unpaid vendor whose dates changed: emails the invite again with their new dates
+// and total (same payment link) and restarts their 10-day clock.
+export async function sendUpdatedInviteAction(form: FormData) {
+  const admin = await requireAdmin();
+  const a = await findApp(form);
+  if (!canBeInvited(a) || !a.invitedAt) backTo(form, "email-skipped", a.id);
+  const result = await sendInvite(a, { updated: true });
+  if (result.columnsMissing) backTo(form, "payments-missing", a.id);
+  if (!result.sent) backTo(form, "email-failed", a.id);
+  await audit(admin, "Sent an updated invite", `${a.businessName}: ${assignedDateLabels(a).join(", ")} (${dollars(amountDueCents(a))})`);
+  backTo(form, "updated-invite-sent", a.id);
+}
+
+// Records a refund made in Stripe (or paid back by hand) for dates a paid vendor dropped.
+export async function markRefundedAction(form: FormData) {
+  const admin = await requireAdmin();
+  const a = await findApp(form);
+  const owed = refundOwedCents({
+    amountPaidCents: a.amountPaidCents,
+    amountDiscountCents: a.amountDiscountCents,
+    refundedCents: a.refundedCents,
+    bookedDates: (a.assignedDates ?? []).length,
+    feePerDateCents: feePerDateCents(a),
+  });
+  if (!a.paid || owed <= 0) backTo(form, "refund-none", a.id);
+  const saved = await updatePayment(a.id, { refundedCents: (a.refundedCents ?? 0) + owed, refundedAt: new Date().toISOString() });
+  if (saved.columnsMissing) backTo(form, "refunds-missing", a.id);
+  await audit(admin, "Marked a refund as made", `${a.businessName}: ${dollars(owed)}`);
+  backTo(form, "refunded", a.id);
+}
+
 // Makes the vendor's /pay link without emailing it (to text it to them, or to test a payment).
 export async function createPayLinkAction(form: FormData) {
   await requireAdmin();
@@ -155,6 +187,7 @@ export async function markUnpaidAction(form: FormData) {
   const a = await findApp(form);
   await updatePayment(a.id, { paid: false, amountPaidCents: null, paidAt: null, paymentId: null, paymentMethod: null });
   if (a.amountDiscountCents) await updatePayment(a.id, { amountDiscountCents: null });
+  if (a.refundedCents) await updatePayment(a.id, { refundedCents: null, refundedAt: null });
   await audit(admin, "Marked a vendor unpaid", a.businessName);
   backTo(form, "unpaid", a.id);
 }

@@ -3,7 +3,8 @@ import { sendInvite } from "@/lib/invites";
 import { canBeInvited, PAYMENT_STATE_LABELS, paymentState } from "@/lib/payments";
 import { listApplications } from "@/lib/store";
 
-// Market board: POST { id } emails a vendor their payment invite, or sends it again.
+// Market board: POST { id, updated? } emails a vendor their payment invite, or sends it again.
+// updated: true sends the "your dates have changed" version and restarts the 10-day clock.
 // The vendor's email address stays on the server, so errors are reworded to leave it out.
 // Admins only (checked here and in proxy.ts).
 export async function POST(request: Request) {
@@ -18,17 +19,18 @@ export async function POST(request: Request) {
     return Response.json({ error: "This vendor needs to be accepted, booked on a date and unpaid." }, { status: 409 });
   }
 
-  const result = await sendInvite(app);
+  const updated = body.updated === true && !!app.invitedAt;
+  const result = await sendInvite(app, { updated });
   if (result.columnsMissing) {
     return Response.json({ error: "Run supabase/add-payments.sql in the Supabase SQL Editor first." }, { status: 409 });
   }
   if (!result.sent) {
     return Response.json({ error: (result.error ?? "The email didn't send.").replaceAll(app.email, "the vendor") }, { status: 502 });
   }
-  await audit(admin, "Sent a payment invite", app.businessName);
+  await audit(admin, updated ? "Sent an updated invite" : "Sent a payment invite", app.businessName);
   const state = paymentState({ ...app, invitedAt: result.invitedAt });
   return Response.json(
-    { invitedAt: result.invitedAt, paymentState: state, paymentLabel: PAYMENT_STATE_LABELS[state] },
+    { invitedAt: result.invitedAt, invitedDates: app.assignedDates ?? [], paymentState: state, paymentLabel: PAYMENT_STATE_LABELS[state] },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

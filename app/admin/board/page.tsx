@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { dateLabel, events, getEvent } from "@/lib/events";
 import { HOT_FOOD_FEE_CENTS, PAYMENT_STATE_LABELS, paymentState, STANDARD_FEE_CENTS } from "@/lib/payments";
+import { stripePaymentUrl } from "@/lib/refunds";
 import { isFoodVendor } from "@/lib/schema";
 import { getCapacities, getSpaces, listApplications } from "@/lib/store";
 import { Board, type BoardVendor } from "./Board";
@@ -59,6 +60,10 @@ async function BoardData() {
       amountPaidCents: a.paid ? (a.amountPaidCents ?? 0) : null,
       amountDiscountCents: a.paid ? (a.amountDiscountCents ?? 0) : 0,
       invitedAt: a.invitedAt ?? null,
+      invitedDates: a.paid ? null : (a.invitedDates ?? null),
+      refundedCents: a.refundedCents ?? 0,
+      refundedAt: a.refundedAt ?? null,
+      paymentUrl: a.paid ? stripePaymentUrl(a.paymentId) : null,
       preferredDates: [a.firstChoice, a.secondChoice, a.thirdChoice].map((d) => (d ? dateLabel(getEvent(a.eventSlug), d) : "")),
       appliedCategories: [...a.categories.filter((c) => c !== "Other"), ...(a.otherCategory ? [a.otherCategory] : a.categories.includes("Other") ? ["Other"] : [])],
       instagram: a.instagram ?? "",

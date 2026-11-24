@@ -12,14 +12,18 @@ import {
   PAYMENT_STATE_LABELS,
   type PaymentState,
 } from "@/lib/payments";
+import { datesChangedSinceInvite, refundOwedCents, stripePaymentUrl } from "@/lib/refunds";
 import type { StoredApplication } from "@/lib/store";
+import { getEvent } from "@/lib/events";
 import {
   createPayLinkAction,
   markPaidAction,
+  markRefundedAction,
   markUnpaidAction,
   sendDeclineEmailAction,
   sendInvitesAction,
   sendReminderAction,
+  sendUpdatedInviteAction,
 } from "./actions";
 
 // Vendor fee pieces of the admin: the badge on each row, the fee panel inside an expanded card,
@@ -38,15 +42,20 @@ export function PaymentBadge({ app }: { app: StoredApplication }) {
     overdue: "bg-pink! text-cream",
     paid: "text-teal",
   };
+  const flag = "pay-badge ml-1.5 rounded-md bg-pink px-2 py-0.5 text-xs font-extrabold uppercase tracking-wide text-cream";
   return (
-    <span
-      className={`pay-badge ml-1.5 rounded-md bg-navy-deep px-2 py-0.5 text-xs font-extrabold uppercase tracking-wide ${tone[state]}`}
-    >
-      {state === "paid" && `✓ Paid${app.amountPaidCents ? ` ${dollars(app.amountPaidCents)}` : ""}`}
-      {state === "overdue" && "⚠ Overdue · unpaid"}
-      {state === "invited" && PAYMENT_STATE_LABELS.invited}
-      {state === "not-invited" && PAYMENT_STATE_LABELS["not-invited"]}
-    </span>
+    <>
+      <span
+        className={`pay-badge ml-1.5 rounded-md bg-navy-deep px-2 py-0.5 text-xs font-extrabold uppercase tracking-wide ${tone[state]}`}
+      >
+        {state === "paid" && `✓ Paid${app.amountPaidCents ? ` ${dollars(app.amountPaidCents)}` : ""}`}
+        {state === "overdue" && "⚠ Overdue · unpaid"}
+        {state === "invited" && PAYMENT_STATE_LABELS.invited}
+        {state === "not-invited" && PAYMENT_STATE_LABELS["not-invited"]}
+      </span>
+      {datesChangedSinceInvite(app) && <span className={flag}>Dates changed since invite</span>}
+      {refundOwed(app) > 0 && <span className={flag}>Refund owed {dollars(refundOwed(app))}</span>}
+    </>
   );
 }
 
@@ -67,6 +76,20 @@ export function InviteCheckbox({ app }: { app: StoredApplication }) {
 }
 
 type FormProps = { app: StoredApplication; back: string; returnTo: string; anchor: string };
+
+export const refundOwed = (a: StoredApplication) =>
+  a.paid
+    ? refundOwedCents({
+        amountPaidCents: a.amountPaidCents,
+        amountDiscountCents: a.amountDiscountCents,
+        refundedCents: a.refundedCents,
+        bookedDates: (a.assignedDates ?? []).length,
+        feePerDateCents: feePerDateCents(a),
+      })
+    : 0;
+
+const shortDates = (a: StoredApplication, ids: string[]) =>
+  ids.map((id) => getEvent(a.eventSlug)?.dates.find((d) => d.id === id)?.short ?? id).join(", ");
 
 function Hidden({ app, back, returnTo, anchor }: FormProps) {
   return (
@@ -137,6 +160,30 @@ export function PaymentPanel(props: FormProps) {
             )}
           </li>
         )}
+        {datesChangedSinceInvite(a) && (
+          <li className="font-semibold text-pink">
+            ⚠ Dates changed since the invite (it listed {shortDates(a, a.invitedDates ?? []) || "no dates"}). Send an
+            updated invite so they see their new dates and total.
+          </li>
+        )}
+        {refundOwed(a) > 0 && (
+          <li className="font-semibold text-pink">
+            Refund owed: {dollars(refundOwed(a))} for dates dropped since they paid.{" "}
+            {stripePaymentUrl(a.paymentId) ? (
+              <a className="underline" href={stripePaymentUrl(a.paymentId)!} target="_blank" rel="noreferrer">
+                Open in Stripe to refund
+              </a>
+            ) : (
+              <span className="font-normal text-muted">Paid {a.paymentMethod ?? "outside Stripe"}: pay it back the same way.</span>
+            )}
+          </li>
+        )}
+        {!!a.refundedCents && (
+          <li className="text-cream">
+            Refunded {dollars(a.refundedCents)}
+            {a.refundedAt && ` on ${when(a.refundedAt)}`}
+          </li>
+        )}
         {a.inviteToken && !a.paid && (
           <li>
             Payment link:{" "}
@@ -161,6 +208,34 @@ export function PaymentPanel(props: FormProps) {
             <Hidden {...props} />
             <button type="submit" className={btn} title="Makes the payment link without sending an email">
               Create payment link
+            </button>
+          </form>
+        )}
+        {canBeInvited(a) && a.invitedAt && (
+          <details className="group">
+            <summary
+              className={`${datesChangedSinceInvite(a) ? "btn-primary px-4 py-1.5 text-sm" : btn} cursor-pointer list-none`}
+              aria-disabled={!email}
+            >
+              Send updated invite
+            </summary>
+            <form action={sendUpdatedInviteAction} className="mt-2 rounded-lg border border-gold bg-gold/10 px-3 py-2 text-gold">
+              <Hidden {...props} />
+              <p>
+                Email an updated invite to {a.businessName} for {shortDates(a, dates)}, total {dollars(amountDueCents(a))}?
+                Their 10-day deadline starts again.
+              </p>
+              <button type="submit" className="btn-primary mt-2 px-4 py-1.5 text-sm disabled:opacity-40" disabled={!email} title={noEmail}>
+                Yes, send it
+              </button>
+            </form>
+          </details>
+        )}
+        {refundOwed(a) > 0 && (
+          <form action={markRefundedAction}>
+            <Hidden {...props} />
+            <button type="submit" className={btn} title="Record the refund after making it in Stripe or by hand">
+              Mark {dollars(refundOwed(a))} refunded
             </button>
           </form>
         )}
@@ -253,7 +328,9 @@ export function PaymentsSetupNotice() {
 export function FeesTile({ apps }: { apps: StoredApplication[] }) {
   const accepted = apps.filter((a) => a.status === "accepted" || a.paid);
   const paid = accepted.filter((a) => a.paid);
-  const collected = paid.reduce((sum, a) => sum + (a.amountPaidCents ?? 0), 0);
+  const collected = paid.reduce((sum, a) => sum + (a.amountPaidCents ?? 0) - (a.refundedCents ?? 0), 0);
+  const refunds = paid.filter((a) => refundOwed(a) > 0);
+  const refundTotal = refunds.reduce((sum, a) => sum + refundOwed(a), 0);
   const unpaid = accepted.filter((a) => !a.paid && (a.assignedDates ?? []).length > 0);
   const overdue = unpaid.filter((a) => paymentState(a) === "overdue").length;
   const outstanding = unpaid.reduce((sum, a) => sum + amountDueCents(a), 0);
@@ -274,6 +351,12 @@ export function FeesTile({ apps }: { apps: StoredApplication[] }) {
           <span className="text-cream">Overdue</span>
           <span className={`font-semibold ${overdue ? "text-pink" : "text-muted"}`}>{overdue}</span>
         </li>
+        {refunds.length > 0 && (
+          <li className="flex justify-between gap-4">
+            <span className="text-cream">Refund owed ({dollars(refundTotal)})</span>
+            <span className="font-semibold text-pink">{refunds.length}</span>
+          </li>
+        )}
       </ul>
     </div>
   );

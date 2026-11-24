@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { datesChangedSinceInvite, refundOwedCents } from "@/lib/refunds";
 import { MARKET_CATEGORIES, paysHotFoodRate, STATUS_CHOICES, STATUS_LABELS } from "@/lib/selection";
 import type { StoredApplication } from "@/lib/store";
 
@@ -20,6 +21,10 @@ export type BoardVendor = {
   amountPaidCents: number | null; // paid vendors only
   amountDiscountCents: number; // taken off by a promotion code
   invitedAt: string | null;
+  invitedDates: string[] | null; // the dates the last invite listed (unpaid vendors)
+  refundedCents: number; // refunds recorded with "Mark refunded" on /admin
+  refundedAt: string | null;
+  paymentUrl: string | null; // the payment in the Stripe Dashboard, for refunds
   // From the application, shown in the edit panel. Email and phone stay off the board.
   preferredDates: string[]; // 1st, 2nd and 3rd choice; "" when not picked
   appliedCategories: string[]; // what the vendor picked when applying, not the market category
@@ -147,19 +152,21 @@ export function Board({
   };
 
   // Resolves to the error text, or null once the email has gone. The server looks up the address.
-  const sendInvite = async (id: string): Promise<string | null> => {
+  const sendInvite = async (id: string, updated = false): Promise<string | null> => {
     try {
       const res = await fetch("/api/admin/board/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ id, updated }),
         cache: "no-store",
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) return body?.error ?? "The invite didn't send.";
       setVendors((vs) =>
         vs.map((v) =>
-          v.id === id ? { ...v, invitedAt: body.invitedAt, paymentState: body.paymentState, paymentLabel: body.paymentLabel } : v,
+          v.id === id
+            ? { ...v, invitedAt: body.invitedAt, invitedDates: body.invitedDates, paymentState: body.paymentState, paymentLabel: body.paymentLabel }
+            : v,
         ),
       );
       return null;
@@ -424,7 +431,7 @@ export function Board({
           key={editingVendor.id}
           vendor={editingVendor}
           fees={fees}
-          onSendInvite={() => sendInvite(editingVendor.id)}
+          onSendInvite={(updated) => sendInvite(editingVendor.id, updated)}
           dates={dates.filter((d) => editingVendor.eventDates.includes(d.id))}
           vendors={vendors}
           spaces={spacesMissing ? null : spaces}
@@ -554,10 +561,22 @@ function paymentMismatch(v: BoardVendor, fees: Fees): string | null {
   const paidDays = Math.round(covered / fee);
   const booked = v.assignedDates.length;
   if (paidDays === booked) return null;
-  const diff = booked * fee - covered;
   const head = `Paid for ${paidDays} day${paidDays === 1 ? "" : "s"}, booked ${booked}`;
-  return diff > 0 ? `${head}: owes ${dollars(diff)}` : `${head}: ${dollars(-diff)} over`;
+  if (booked > paidDays) return `${head}: owes ${dollars(booked * fee - covered)}`;
+  const owed = boardRefundOwed(v, fees);
+  return owed > 0 ? `${head}: refund owed ${dollars(owed)}` : null;
 }
+
+const datesChanged = (v: BoardVendor) => datesChangedSinceInvite({ ...v, paid: v.paymentState === "paid" });
+
+const boardRefundOwed = (v: BoardVendor, fees: Fees) =>
+  refundOwedCents({
+    amountPaidCents: v.amountPaidCents,
+    amountDiscountCents: v.amountDiscountCents,
+    refundedCents: v.refundedCents,
+    bookedDates: v.assignedDates.length,
+    feePerDateCents: paysHotFoodRate(v.category) ? fees.hotFood : fees.standard,
+  });
 
 function Card({
   vendor: v,
@@ -612,6 +631,7 @@ function Card({
         )}
         {pay && <span className={`rounded-full px-2 py-0.5 ${pay.tone}`}>{v.paymentLabel ?? pay.label}</span>}
         {mismatch && <span className="rounded-full bg-pink/20 px-2 py-0.5 text-pink">⚠ {mismatch}</span>}
+        {datesChanged(v) && <span className="rounded-full bg-pink/20 px-2 py-0.5 text-pink">⚠ Dates changed since invite</span>}
       </div>
     </div>
   );
@@ -695,15 +715,18 @@ function PaymentSection({
   dates: MarketDate[];
   fees: Fees;
   unsaved: boolean; // dates or category edited in the panel but not saved yet
-  onSendInvite: () => Promise<string | null>;
+  onSendInvite: (updated: boolean) => Promise<string | null>;
 }) {
-  const [confirming, setConfirming] = useState(false);
+  // Which email the confirm box is for: a first invite or resend, or an updated invite (new dates).
+  const [confirming, setConfirming] = useState<"invite" | "updated" | null>(null);
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
 
   const booked = dates.filter((d) => v.assignedDates.includes(d.id));
   const perDate = paysHotFoodRate(v.category) ? fees.hotFood : fees.standard;
   const total = perDate * booked.length;
+  const changed = !unsaved && datesChanged(v);
+  const refundOwed = boardRefundOwed(v, fees);
   const invited = v.invitedAt ? new Date(v.invitedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
   const stateText =
     v.paymentState === "paid"
@@ -722,11 +745,12 @@ function PaymentSection({
         : "";
 
   const send = async () => {
+    const updated = confirming === "updated";
     setSending(true);
-    const error = await onSendInvite();
+    const error = await onSendInvite(updated);
     setSending(false);
-    setConfirming(false);
-    setResult(error ? { ok: false, text: error } : { ok: true, text: `Invite sent to ${v.name}.` });
+    setConfirming(null);
+    setResult(error ? { ok: false, text: error } : { ok: true, text: `${updated ? "Updated invite" : "Invite"} sent to ${v.name}.` });
   };
 
   return (
@@ -738,29 +762,68 @@ function PaymentSection({
           Due {dollars(total)} ({dollars(perDate)} × {booked.length} {booked.length === 1 ? "date" : "dates"})
         </p>
       )}
+      {changed && (
+        <p className="mt-1 text-sm font-semibold text-pink">
+          ⚠ Dates changed since the invite. Send an updated invite so they see their new dates and total.
+        </p>
+      )}
+      {v.paymentState === "paid" && refundOwed > 0 && (
+        <p className="mt-1 text-sm font-semibold text-pink">
+          Refund owed: {dollars(refundOwed)}.{" "}
+          {v.paymentUrl ? (
+            <a className="underline" href={v.paymentUrl} target="_blank" rel="noreferrer">
+              Open in Stripe to refund
+            </a>
+          ) : (
+            <span className="font-normal text-muted">Paid outside Stripe: pay it back the same way.</span>
+          )}{" "}
+          <span className="font-normal text-muted">Then click Mark refunded on the vendor&apos;s applications card.</span>
+        </p>
+      )}
+      {v.refundedCents > 0 && (
+        <p className="mt-1 text-sm text-cream">
+          Refunded {dollars(v.refundedCents)}
+          {v.refundedAt && ` on ${new Date(v.refundedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
+        </p>
+      )}
       {v.paymentState !== "paid" &&
         (confirming ? (
           <div className="mt-2 rounded-lg border border-gold bg-gold/10 px-3 py-2 text-sm text-gold">
             <p>
-              Email an invite to {v.name} for {booked.map((d) => d.short).join(", ")}, total {dollars(total)}?
+              Email {confirming === "updated" ? "an updated invite" : "an invite"} to {v.name} for{" "}
+              {booked.map((d) => d.short).join(", ")}, total {dollars(total)}?
+              {confirming === "updated" && " Their 10-day deadline starts again."}
             </p>
             <div className="mt-2 flex gap-2">
               <button type="button" onClick={send} disabled={sending} className="btn-primary px-4 py-1.5 text-sm disabled:opacity-40">
                 {sending ? "Sending..." : "Yes, send it"}
               </button>
-              <button type="button" onClick={() => setConfirming(false)} disabled={sending} className="px-3 py-1.5 text-sm text-muted hover:text-cream">
+              <button type="button" onClick={() => setConfirming(null)} disabled={sending} className="px-3 py-1.5 text-sm text-muted hover:text-cream">
                 Not now
               </button>
             </div>
           </div>
         ) : (
           <div className="mt-2 flex flex-wrap items-center gap-2">
+            {v.invitedAt && (
+              <button
+                type="button"
+                disabled={!!blocked}
+                onClick={() => {
+                  setResult(null);
+                  setConfirming("updated");
+                }}
+                className={`${changed ? "btn-primary px-4 py-1.5 text-sm" : "btn-secondary"} disabled:opacity-40`}
+              >
+                Send updated invite
+              </button>
+            )}
             <button
               type="button"
               disabled={!!blocked}
               onClick={() => {
                 setResult(null);
-                setConfirming(true);
+                setConfirming("invite");
               }}
               className="btn-secondary disabled:opacity-40"
             >
@@ -791,7 +854,7 @@ function EditPanel({
 }: {
   vendor: BoardVendor;
   fees: Fees;
-  onSendInvite: () => Promise<string | null>;
+  onSendInvite: (updated: boolean) => Promise<string | null>;
   dates: MarketDate[];
   vendors: BoardVendor[];
   spaces: Spaces | null; // null: the market_spaces table doesn't exist yet

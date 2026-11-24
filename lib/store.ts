@@ -38,6 +38,10 @@ export type PaymentFields = {
   paymentId: string | null; // Stripe payment intent / checkout session id, or a note for manual payments
   paymentMethod: string | null; // "stripe", "cash", "zelle", "other"
   declineEmailedAt: string | null;
+  // Added with supabase/add-invited-dates.sql.
+  invitedDates: string[] | null; // the dates the last invite listed
+  refundedCents: number | null; // refunds recorded with "Mark refunded" (made in Stripe or by hand)
+  refundedAt: string | null;
 };
 
 export type Selection = Pick<StoredApplication, "status"> & { assignedDates: string[]; marketCategory: string };

@@ -3,7 +3,7 @@ import { declineEmail, inviteEmail, receiptEmail, reminderEmail, REPLY_TO_ALL, s
 import { amountDueCents } from "@/lib/payments";
 import type { StoredApplication } from "@/lib/store";
 
-// Shows what vendors receive: /api/admin/email-preview?type=invite|reminder|decline|receipt
+// Shows what vendors receive: /api/admin/email-preview?type=invite|updated-invite|reminder|decline|receipt
 // Uses a made-up vendor and changes no records. Viewing sends nothing; POST { type, to } emails that
 // sample to one address, with [TEST] in the subject. Admins only (checked here and in proxy.ts).
 const SAMPLE = {
@@ -21,9 +21,14 @@ const SAMPLE = {
   inviteToken: "sample-link-for-preview-only",
 } as unknown as StoredApplication;
 
-const TYPES = { invite: inviteEmail, reminder: reminderEmail, decline: declineEmail } as const;
+const TYPES = {
+  invite: inviteEmail,
+  "updated-invite": (a: StoredApplication) => inviteEmail(a, { updated: true }),
+  reminder: reminderEmail,
+  decline: declineEmail,
+} as const;
 
-const NAMES = ["invite", "reminder", "decline", "receipt"];
+const NAMES = ["invite", "updated-invite", "reminder", "decline", "receipt"];
 
 const sampleEmail = (type: string) =>
   type === "receipt"
