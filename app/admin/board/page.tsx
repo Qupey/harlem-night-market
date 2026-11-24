@@ -22,6 +22,9 @@ export default function MarketBoardPage() {
           <Link href="/admin/markets" className="btn-secondary">
             Vendors by market
           </Link>
+          <Link href="/admin/broadcast" className="btn-secondary">
+            Message vendors
+          </Link>
           <Link href="/admin" className="text-sm text-muted underline">
             ← Back to applications
           </Link>

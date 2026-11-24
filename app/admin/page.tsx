@@ -51,6 +51,9 @@ export default function AdminPage({ searchParams }: PageProps<"/admin">) {
           <a href="/admin/board" className="btn-secondary">
             Market board
           </a>
+          <a href="/admin/broadcast" className="btn-secondary">
+            Message vendors
+          </a>
           <a href="/admin/faq" className="btn-secondary">
             Manage FAQ
           </a>

@@ -27,7 +27,7 @@ export const REPLY_TO = REPLY_TO_ALL[0];
 
 export type EmailResult = { sent: true } | { sent: false; error: string };
 
-type Email = { subject: string; text: string; html: string };
+export type Email = { subject: string; text: string; html: string };
 
 export async function sendEmail(to: string, email: Email): Promise<EmailResult> {
   const key = process.env.RESEND_API_KEY;
@@ -40,6 +40,36 @@ export async function sendEmail(to: string, email: Email): Promise<EmailResult> 
   if (res.ok) return { sent: true };
   const detail = await res.text().catch(() => "");
   return { sent: false, error: `Email to ${to} failed (${res.status}) ${detail.slice(0, 200)}` };
+}
+
+// Many emails at once through Resend's batch endpoint (up to 100 per call), each to its own
+// recipient. Pauses between calls to stay under Resend's rate limit. If a batch is refused (one
+// bad address refuses the whole call), its emails are retried one by one so only the bad ones fail.
+export async function sendEmailBatch(messages: { to: string; email: Email }[]): Promise<{ sent: string[]; failed: string[] }> {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return { sent: [], failed: messages.map((m) => m.to) };
+  const sent: string[] = [];
+  const failed: string[] = [];
+  for (let i = 0; i < messages.length; i += 100) {
+    if (i > 0) await new Promise((resolve) => setTimeout(resolve, 600));
+    const chunk = messages.slice(i, i + 100);
+    const res = await fetch("https://api.resend.com/emails/batch", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify(chunk.map((m) => ({ from: FROM, to: [m.to], reply_to: REPLY_TO_ALL, ...m.email }))),
+    }).catch(() => null);
+    if (res?.ok) {
+      sent.push(...chunk.map((m) => m.to));
+      continue;
+    }
+    console.error(`Broadcast batch failed (${res?.status ?? "network error"}); sending one by one`);
+    for (const m of chunk) {
+      await new Promise((resolve) => setTimeout(resolve, 550));
+      const one = await sendEmail(m.to, m.email).catch(() => ({ sent: false }) as const);
+      (one.sent ? sent : failed).push(m.to);
+    }
+  }
+  return { sent, failed };
 }
 
 // --- Templates -------------------------------------------------------------
@@ -160,6 +190,19 @@ export function reminderEmail(a: StoredApplication): Email {
     "If you can no longer take part, just reply and let us know so we can offer the space to another vendor.",
     signoff,
   ]);
+}
+
+// A message written on /admin/broadcast. Blank lines separate paragraphs; single line breaks are kept.
+// {business_name} is replaced with the vendor's business name.
+export function broadcastEmail(a: Pick<StoredApplication, "contactName" | "businessName">, subject: string, body: string): Email {
+  const fill = (s: string) => s.replaceAll("{business_name}", a.businessName);
+  const paragraphs = fill(body)
+    .replace(/\r\n/g, "\n")
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => ({ lines: p.split("\n") }));
+  return compose(fill(subject), [`Hi ${a.contactName},`, ...paragraphs, signoff]);
 }
 
 // Admin invites and password resets: a link to /admin/set-password, valid for 24 hours.
