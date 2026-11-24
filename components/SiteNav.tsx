@@ -17,7 +17,7 @@ export function SiteNav({ applyHref }: { applyHref: string }) {
           </li>
           <li>
             <Link href="/vendors" className="text-cream hover:text-teal">
-              Vendors<span className="hidden sm:inline"> at the market</span>
+              Vendors
             </Link>
           </li>
           <li>

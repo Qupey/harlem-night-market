@@ -101,11 +101,6 @@ async function VendorLists({ slug }: { slug: string }) {
         <section key={d.id} id={`date-${d.id}`} className="scroll-mt-16">
           <h2 className="display text-4xl sm:text-5xl">
             <span className={["text-orange", "text-pink", "text-teal"][i % 3]}>Sat {d.short}</span>
-            {d.vendors.length > 0 && (
-              <span className="ml-3 align-middle font-sans text-sm font-semibold normal-case tracking-normal text-muted">
-                {d.vendors.length} {d.vendors.length === 1 ? "vendor" : "vendors"}
-              </span>
-            )}
           </h2>
           {d.vendors.length === 0 ? (
             <p className="mt-4 rounded-xl border border-dashed border-line/80 bg-panel/40 px-5 py-8 text-center font-extrabold uppercase tracking-wider text-muted">
