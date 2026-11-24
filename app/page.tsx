@@ -198,10 +198,14 @@ export default function Home() {
 
         {/* 3. Locations */}
         <section id="locations" className="mx-auto mt-24 max-w-5xl scroll-mt-16 px-4 sm:px-6">
-          <SectionHeading kicker="Plan your visit">
-            <span className="text-cream">Find the Harlem Night Market</span>{" "}
-            <span className="text-teal">under the Park Avenue Viaduct at:</span>
-          </SectionHeading>
+          {/* Second line is sized so it runs the same width as the first (Anton width ratio 0.88). */}
+          <div className="text-center">
+            <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-gold sm:text-sm">Plan your visit</p>
+            <h2 className="display mt-3 whitespace-nowrap">
+              <span className="block text-[min(4.5rem,7.1vw)] text-cream">Find the Harlem Night Market</span>{" "}
+              <span className="mt-1 block text-[min(3.958rem,6.245vw)] text-teal">under the Park Avenue Viaduct at:</span>
+            </h2>
+          </div>
           <ul className="mt-10 grid gap-6 md:grid-cols-3">
             {LOCATIONS.map((loc, i) => (
               <li
