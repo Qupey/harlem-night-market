@@ -17,7 +17,7 @@ export type BroadcastResult =
 export async function broadcastAction(_prev: BroadcastResult, form: FormData): Promise<BroadcastResult> {
   const admin = await adminForAction();
   const intent = form.get("intent");
-  const subject = String(form.get("subject") ?? "").trim().slice(0, 200);
+  const subject = String(form.get("subject") ?? "").replace(/[\r\n]+/g, " ").trim().slice(0, 200); // one line only
   const body = String(form.get("body") ?? "").trim().slice(0, 10000);
   if (!subject || !body) return { kind: "error", text: "Write a subject and a message first." };
 
