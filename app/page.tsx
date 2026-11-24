@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { BrandLockup, DateTiles, SiteFooter } from "@/components/Brand";
+import { SiteNav } from "@/components/SiteNav";
 import { defaultEventSlug, getEvent } from "@/lib/events";
 
 // Public event homepage. Photos live in public/photos (1152x768 JPGs).
@@ -129,27 +130,7 @@ export default function Home() {
 
   return (
     <>
-      <nav className="sticky top-0 z-20 border-b border-line/60 bg-navy-deep/85 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
-          <Link href="/" className="display text-lg text-cream sm:text-xl">
-            Harlem <span className="text-orange">Night</span> <span className="text-pink">Market</span>
-          </Link>
-          <ul className="flex items-center gap-4 text-xs font-semibold uppercase tracking-wider sm:gap-6 sm:text-sm">
-            <li className="hidden sm:block">
-              <a href="#locations" className="text-cream hover:text-teal">Visit</a>
-            </li>
-            <li className="hidden sm:block">
-              <a href="#music" className="text-cream hover:text-teal">Music</a>
-            </li>
-            <li className="hidden sm:block">
-              <a href="#gallery" className="text-cream hover:text-teal">Photos</a>
-            </li>
-            <li>
-              <Link href={applyHref} className="text-teal hover:text-cream">Vendors</Link>
-            </li>
-          </ul>
-        </div>
-      </nav>
+      <SiteNav applyHref={applyHref} />
 
       <main className="w-full flex-1 overflow-x-clip">
         {/* 1. Hero */}
@@ -283,6 +264,16 @@ export default function Home() {
                 </li>
               ))}
             </ul>
+            <div className="mt-10 flex flex-col items-center gap-3 rounded-xl border border-line/70 bg-panel/60 px-5 py-6 text-center">
+              <p className="display text-3xl sm:text-4xl">
+                <span className="text-cream">Meet the</span> <span className="text-orange">makers</span>{" "}
+                <span className="text-cream">&amp;</span> <span className="text-pink">food vendors</span>
+              </p>
+              <p className="text-sm text-muted sm:text-base">See who&rsquo;s selling at each Saturday&rsquo;s market.</p>
+              <Link href="/vendors" className="btn-primary mt-2 text-xl">
+                Vendors at the market
+              </Link>
+            </div>
           </div>
         </section>
 
