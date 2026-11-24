@@ -3,9 +3,9 @@ import Link from "next/link";
 import type { FooterLogo, MarketEvent } from "@/lib/events";
 
 // The Harlem Night Market logo (neon lettering over the purple tagline banner).
-export function BrandLockup({ event, size = "lg" }: { event: MarketEvent; size?: "lg" | "sm" }) {
+export function BrandLockup({ event, size = "lg", href }: { event: MarketEvent; size?: "lg" | "sm"; href?: string }) {
   return (
-    <Link href={`/events/${event.slug}`} className="inline-block">
+    <Link href={href ?? `/events/${event.slug}`} className="inline-block">
       <Image
         src={event.logo}
         alt={`${event.name}: ${event.tagline.join(" + ")}`}
@@ -38,16 +38,20 @@ export function Venue({ event }: { event: MarketEvent }) {
   return (
     <p className="text-center font-extrabold uppercase">
       <span className="block text-lg tracking-wide text-orange sm:text-2xl">{event.venueIntro}</span>
-      <span className="block text-[2.4375rem] leading-tight tracking-wide text-teal sm:text-[3.9rem]">{event.venue}</span>
+      <span className="block text-[2.1rem] leading-tight tracking-wide text-teal sm:text-[3.4rem]">{event.venue}</span>
       <span className="block text-base tracking-wide text-cream sm:text-xl">{event.address}</span>
+      {event.addressNote && (
+        <span className="mt-1 block text-xs font-semibold normal-case tracking-wide text-muted sm:text-sm">{event.addressNote}</span>
+      )}
     </p>
   );
 }
 
-export function SiteFooter({ event }: { event: MarketEvent }) {
+export function SiteFooter({ event, hostedBy }: { event: MarketEvent; hostedBy?: string }) {
   return (
     <footer className="mt-16 border-t border-line/70 bg-navy-deep/40">
       <div className="mx-auto max-w-4xl space-y-10 px-4 py-10 text-center sm:px-6">
+        {hostedBy && <p className="mx-auto max-w-2xl text-sm text-cream/90 sm:text-base">{hostedBy}</p>}
         <LogoRow title="Produced by" logos={event.producers} />
         <LogoRow title="In partnership with" logos={event.partners} />
       </div>

@@ -18,6 +18,7 @@ export type MarketEvent = {
   venueIntro: string; // small line above the venue name, e.g. "At the Historic"
   venue: string;
   address: string;
+  addressNote?: string; // optional smaller line under the address
   logo: string; // in public/
   producers: FooterLogo[]; // footer: "Produced by"
   partners: FooterLogo[]; // footer: "In partnership with"
@@ -33,8 +34,9 @@ export const events: MarketEvent[] = [
     name: "Harlem Night Market",
     tagline: ["Music", "Food", "Makers", "Culture", "Community"],
     venueIntro: "At the Historic",
-    venue: "La Marqueta",
-    address: "116th & Park Avenue",
+    venue: "La Marqueta's Lot 2",
+    address: "112th & Park Ave",
+    addressNote: "and 111th & 115th Streets under the Park Ave Viaduct",
     logo: "/logos/harlem-night-market.png",
     producers: [
       { name: "Uptown Grand Central", logo: "/logos/uptown-grand-central.png", height: 52 },
