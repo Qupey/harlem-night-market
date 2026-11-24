@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { BrandLockup, DateTiles, SiteFooter } from "@/components/Brand";
 import { HeroCarousel } from "@/components/HeroCarousel";
+import { PhotoGallery } from "@/components/PhotoGallery";
 import { SiteNav } from "@/components/SiteNav";
 import { defaultEventSlug, getEvent } from "@/lib/events";
 
@@ -342,13 +343,7 @@ export default function Home() {
           <SectionHeading kicker="Scenes from the market">
             <span className="text-pink">Photo</span> <span className="text-cream">Gallery</span>
           </SectionHeading>
-          <ul className="mt-10 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4">
-            {GALLERY.map((p) => (
-              <li key={p.n} className="aspect-[3/2] overflow-hidden rounded-lg ring-1 ring-line/60">
-                <Photo n={p.n} alt={p.alt} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" className="transition duration-300 hover:scale-105" />
-              </li>
-            ))}
-          </ul>
+          <PhotoGallery photos={GALLERY.map((p) => ({ src: photo(p.n), alt: p.alt, width: PHOTO_W, height: PHOTO_H }))} />
         </section>
 
         {/* 8. Closing */}
