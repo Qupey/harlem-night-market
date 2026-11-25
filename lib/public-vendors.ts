@@ -58,7 +58,13 @@ const CATEGORY_ORDER: string[] = [...MARKET_CATEGORIES, ""];
 
 // Booked on the board but not listed publicly (e.g. the organizers' own table). Lowercase business names.
 const HIDDEN_FROM_PUBLIC = new Set(["tbo harlem"]);
-const hidden = (a: StoredApplication) => HIDDEN_FROM_PUBLIC.has(a.businessName.trim().toLowerCase().replace(/\s+/g, " "));
+const nameKey = (a: StoredApplication) => a.businessName.trim().toLowerCase().replace(/\s+/g, " ");
+const hidden = (a: StoredApplication) => HIDDEN_FROM_PUBLIC.has(nameKey(a));
+
+// Names shown differently on the public page than on the application (keys: lowercase business names).
+const PUBLIC_NAMES: Record<string, string> = {
+  "community artist": "Carmen The Community Artist",
+};
 
 // Cached for 5 minutes, so newly paid vendors show up without a deploy.
 export async function getPublicVendorsByDate(eventSlug: string): Promise<PublicMarketDate[]> {
@@ -75,7 +81,7 @@ export async function getPublicVendorsByDate(eventSlug: string): Promise<PublicM
       .map((a): PublicVendor => {
         const ig = instagram(a.instagram) ?? (a.website ? instagram(a.website) : null);
         return {
-          name: a.businessName.trim(),
+          name: PUBLIC_NAMES[nameKey(a)] ?? a.businessName.trim(),
           category: a.marketCategory && CATEGORY_ORDER.includes(a.marketCategory) ? a.marketCategory : "",
           instagramUrl: ig?.url ?? null,
           instagramHandle: ig?.handle ?? null,
