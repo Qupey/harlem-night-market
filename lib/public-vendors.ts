@@ -56,6 +56,10 @@ function website(raw: string | undefined): string | null {
 
 const CATEGORY_ORDER: string[] = [...MARKET_CATEGORIES, ""];
 
+// Booked on the board but not listed publicly (e.g. the organizers' own table). Lowercase business names.
+const HIDDEN_FROM_PUBLIC = new Set(["tbo harlem"]);
+const hidden = (a: StoredApplication) => HIDDEN_FROM_PUBLIC.has(a.businessName.trim().toLowerCase().replace(/\s+/g, " "));
+
 // Cached for 5 minutes, so newly paid vendors show up without a deploy.
 export async function getPublicVendorsByDate(eventSlug: string): Promise<PublicMarketDate[]> {
   "use cache";
@@ -67,7 +71,7 @@ export async function getPublicVendorsByDate(eventSlug: string): Promise<PublicM
 
   return event.dates.map((d) => {
     const vendors = apps
-      .filter((a) => paidDates(a).includes(d.id))
+      .filter((a) => !hidden(a) && paidDates(a).includes(d.id))
       .map((a): PublicVendor => {
         const ig = instagram(a.instagram) ?? (a.website ? instagram(a.website) : null);
         return {
